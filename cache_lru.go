@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // LRUCacher implments cache object facilities
@@ -19,7 +19,7 @@ type LRUCacher struct {
 	sqlList        *list.List
 	idIndex        map[string]map[string]*list.Element
 	sqlIndex       map[string]map[string]*list.Element
-	store          core.CacheStore
+	store          phoenixormcore.CacheStore
 	mutex          sync.Mutex
 	MaxElementSize int
 	Expired        time.Duration
@@ -27,15 +27,15 @@ type LRUCacher struct {
 }
 
 // NewLRUCacher creates a cacher
-func NewLRUCacher(store core.CacheStore, maxElementSize int) *LRUCacher {
+func NewLRUCacher(store phoenixormcore.CacheStore, maxElementSize int) *LRUCacher {
 	return NewLRUCacher2(store, 3600*time.Second, maxElementSize)
 }
 
 // NewLRUCacher2 creates a cache include different params
-func NewLRUCacher2(store core.CacheStore, expired time.Duration, maxElementSize int) *LRUCacher {
+func NewLRUCacher2(store phoenixormcore.CacheStore, expired time.Duration, maxElementSize int) *LRUCacher {
 	cacher := &LRUCacher{store: store, idList: list.New(),
 		sqlList: list.New(), Expired: expired,
-		GcInterval: core.CacheGcInterval, MaxElementSize: maxElementSize,
+		GcInterval: phoenixormcore.CacheGcInterval, MaxElementSize: maxElementSize,
 		sqlIndex: make(map[string]map[string]*list.Element),
 		idIndex:  make(map[string]map[string]*list.Element),
 	}
@@ -57,7 +57,7 @@ func (m *LRUCacher) GC() {
 	defer m.mutex.Unlock()
 	var removedNum int
 	for e := m.idList.Front(); e != nil; {
-		if removedNum <= core.CacheGcMaxRemoved &&
+		if removedNum <= phoenixormcore.CacheGcMaxRemoved &&
 			time.Now().Sub(e.Value.(*idNode).lastVisit) > m.Expired {
 			removedNum++
 			next := e.Next()
@@ -71,7 +71,7 @@ func (m *LRUCacher) GC() {
 
 	removedNum = 0
 	for e := m.sqlList.Front(); e != nil; {
-		if removedNum <= core.CacheGcMaxRemoved &&
+		if removedNum <= phoenixormcore.CacheGcMaxRemoved &&
 			time.Now().Sub(e.Value.(*sqlNode).lastVisit) > m.Expired {
 			removedNum++
 			next := e.Next()

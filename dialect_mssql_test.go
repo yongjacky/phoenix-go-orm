@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"testing"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestParseMSSQL(t *testing.T) {
@@ -21,7 +21,7 @@ func TestParseMSSQL(t *testing.T) {
 		{"server=localhost;user id=sa;password=yourStrong(!)Password;database=db", "db", true},
 	}
 
-	driver := core.QueryDriver("mssql")
+	driver := phoenixormcore.QueryDriver("mssql")
 
 	for _, test := range tests {
 		uri, err := driver.Parse("mssql", test.in)

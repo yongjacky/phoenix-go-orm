@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 type tagContext struct {
 	tagName         string
 	params          []string
 	preTag, nextTag string
-	table           *core.Table
-	col             *core.Column
+	table           *phoenixormcore.Table
+	col             *phoenixormcore.Column
 	fieldValue      reflect.Value
 	isIndex         bool
 	isUnique        bool
@@ -59,7 +59,7 @@ var (
 )
 
 func init() {
-	for k := range core.SqlTypes {
+	for k := range phoenixormcore.SqlTypes {
 		defaultTagHandlers[k] = SQLTypeTagHandler
 	}
 }
@@ -71,13 +71,13 @@ func IgnoreTagHandler(ctx *tagContext) error {
 
 // OnlyFromDBTagHandler describes mapping direction tag handler
 func OnlyFromDBTagHandler(ctx *tagContext) error {
-	ctx.col.MapType = core.ONLYFROMDB
+	ctx.col.MapType = phoenixormcore.ONLYFROMDB
 	return nil
 }
 
 // OnlyToDBTagHandler describes mapping direction tag handler
 func OnlyToDBTagHandler(ctx *tagContext) error {
-	ctx.col.MapType = core.ONLYTODB
+	ctx.col.MapType = phoenixormcore.ONLYTODB
 	return nil
 }
 
@@ -177,7 +177,7 @@ func DeletedTagHandler(ctx *tagContext) error {
 // IndexTagHandler describes index tag handler
 func IndexTagHandler(ctx *tagContext) error {
 	if len(ctx.params) > 0 {
-		ctx.indexNames[ctx.params[0]] = core.IndexType
+		ctx.indexNames[ctx.params[0]] = phoenixormcore.IndexType
 	} else {
 		ctx.isIndex = true
 	}
@@ -187,7 +187,7 @@ func IndexTagHandler(ctx *tagContext) error {
 // UniqueTagHandler describes unique tag handler
 func UniqueTagHandler(ctx *tagContext) error {
 	if len(ctx.params) > 0 {
-		ctx.indexNames[ctx.params[0]] = core.UniqueType
+		ctx.indexNames[ctx.params[0]] = phoenixormcore.UniqueType
 	} else {
 		ctx.isUnique = true
 	}
@@ -204,16 +204,16 @@ func CommentTagHandler(ctx *tagContext) error {
 
 // SQLTypeTagHandler describes SQL Type tag handler
 func SQLTypeTagHandler(ctx *tagContext) error {
-	ctx.col.SQLType = core.SQLType{Name: ctx.tagName}
+	ctx.col.SQLType = phoenixormcore.SQLType{Name: ctx.tagName}
 	if len(ctx.params) > 0 {
-		if ctx.tagName == core.Enum {
+		if ctx.tagName == phoenixormcore.Enum {
 			ctx.col.EnumOptions = make(map[string]int)
 			for k, v := range ctx.params {
 				v = strings.TrimSpace(v)
 				v = strings.Trim(v, "'")
 				ctx.col.EnumOptions[v] = k
 			}
-		} else if ctx.tagName == core.Set {
+		} else if ctx.tagName == phoenixormcore.Set {
 			ctx.col.SetOptions = make(map[string]int)
 			for k, v := range ctx.params {
 				v = strings.TrimSpace(v)

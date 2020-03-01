@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
-func (session *Session) cacheDelete(table *core.Table, tableName, sqlStr string, args ...interface{}) error {
+func (session *Session) cacheDelete(table *phoenixormcore.Table, tableName, sqlStr string, args ...interface{}) error {
 	if table == nil ||
 		session.tx != nil {
 		return ErrCacheFailed
@@ -29,17 +29,17 @@ func (session *Session) cacheDelete(table *core.Table, tableName, sqlStr string,
 
 	cacher := session.engine.getCacher(tableName)
 	pkColumns := table.PKColumns()
-	ids, err := core.GetCacheSql(cacher, tableName, newsql, args)
+	ids, err := phoenixormcore.GetCacheSql(cacher, tableName, newsql, args)
 	if err != nil {
 		resultsSlice, err := session.queryBytes(newsql, args...)
 		if err != nil {
 			return err
 		}
-		ids = make([]core.PK, 0)
+		ids = make([]phoenixormcore.PK, 0)
 		if len(resultsSlice) > 0 {
 			for _, data := range resultsSlice {
 				var id int64
-				var pk core.PK = make([]interface{}, 0)
+				var pk phoenixormcore.PK = make([]interface{}, 0)
 				for _, col := range pkColumns {
 					if v, ok := data[col.Name]; !ok {
 						return errors.New("no id")
@@ -101,7 +101,8 @@ func (session *Session) Delete(bean interface{}) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if len(condSQL) == 0 && session.statement.LimitN == 0 {
+	pLimitN := session.statement.LimitN
+	if len(condSQL) == 0 && (pLimitN == nil || *pLimitN == 0) {
 		return 0, ErrNeedDeletedCond
 	}
 
@@ -119,28 +120,29 @@ func (session *Session) Delete(bean interface{}) (int64, error) {
 	if len(session.statement.OrderStr) > 0 {
 		orderSQL += fmt.Sprintf(" ORDER BY %s", session.statement.OrderStr)
 	}
-	if session.statement.LimitN > 0 {
-		orderSQL += fmt.Sprintf(" LIMIT %d", session.statement.LimitN)
+	if pLimitN != nil && *pLimitN > 0 {
+		limitNValue := *pLimitN
+		orderSQL += fmt.Sprintf(" LIMIT %d", limitNValue)
 	}
 
 	if len(orderSQL) > 0 {
 		switch session.engine.dialect.DBType() {
-		case core.POSTGRES:
+		case phoenixormcore.POSTGRES:
 			inSQL := fmt.Sprintf("ctid IN (SELECT ctid FROM %s%s)", tableName, orderSQL)
 			if len(condSQL) > 0 {
 				deleteSQL += " AND " + inSQL
 			} else {
 				deleteSQL += " WHERE " + inSQL
 			}
-		case core.SQLITE:
+		case phoenixormcore.SQLITE:
 			inSQL := fmt.Sprintf("rowid IN (SELECT rowid FROM %s%s)", tableName, orderSQL)
 			if len(condSQL) > 0 {
 				deleteSQL += " AND " + inSQL
 			} else {
 				deleteSQL += " WHERE " + inSQL
 			}
-		// TODO: how to handle delete limit on mssql?
-		case core.MSSQL:
+			// TODO: how to handle delete limit on mssql?
+		case phoenixormcore.MSSQL:
 			return 0, ErrNotImplemented
 		default:
 			deleteSQL += orderSQL
@@ -166,22 +168,22 @@ func (session *Session) Delete(bean interface{}) (int64, error) {
 
 		if len(orderSQL) > 0 {
 			switch session.engine.dialect.DBType() {
-			case core.POSTGRES:
+			case phoenixormcore.POSTGRES:
 				inSQL := fmt.Sprintf("ctid IN (SELECT ctid FROM %s%s)", tableName, orderSQL)
 				if len(condSQL) > 0 {
 					realSQL += " AND " + inSQL
 				} else {
 					realSQL += " WHERE " + inSQL
 				}
-			case core.SQLITE:
+			case phoenixormcore.SQLITE:
 				inSQL := fmt.Sprintf("rowid IN (SELECT rowid FROM %s%s)", tableName, orderSQL)
 				if len(condSQL) > 0 {
 					realSQL += " AND " + inSQL
 				} else {
 					realSQL += " WHERE " + inSQL
 				}
-			// TODO: how to handle delete limit on mssql?
-			case core.MSSQL:
+				// TODO: how to handle delete limit on mssql?
+			case phoenixormcore.MSSQL:
 				return 0, ErrNotImplemented
 			default:
 				realSQL += orderSQL

@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
 // Insert insert one or more beans
@@ -122,7 +122,7 @@ func (session *Session) innerInsertMulti(rowsSlicePtr interface{}) (int64, error
 	var colNames []string
 	var colMultiPlaces []string
 	var args []interface{}
-	var cols []*core.Column
+	var cols []*phoenixormcore.Column
 
 	for i := 0; i < size; i++ {
 		v := sliceValue.Index(i)
@@ -151,7 +151,7 @@ func (session *Session) innerInsertMulti(rowsSlicePtr interface{}) (int64, error
 				if col.IsAutoIncrement && isZero(fieldValue.Interface()) {
 					continue
 				}
-				if col.MapType == core.ONLYFROMDB {
+				if col.MapType == phoenixormcore.ONLYFROMDB {
 					continue
 				}
 				if col.IsDeleted {
@@ -202,7 +202,7 @@ func (session *Session) innerInsertMulti(rowsSlicePtr interface{}) (int64, error
 				if col.IsAutoIncrement && isZero(fieldValue.Interface()) {
 					continue
 				}
-				if col.MapType == core.ONLYFROMDB {
+				if col.MapType == phoenixormcore.ONLYFROMDB {
 					continue
 				}
 				if col.IsDeleted {
@@ -246,7 +246,7 @@ func (session *Session) innerInsertMulti(rowsSlicePtr interface{}) (int64, error
 	cleanupProcessorsClosures(&session.beforeClosures)
 
 	var sql string
-	if session.engine.dialect.DBType() == core.ORACLE {
+	if session.engine.dialect.DBType() == phoenixormcore.ORACLE {
 		temp := fmt.Sprintf(") INTO %s (%v) VALUES (",
 			session.engine.Quote(tableName),
 			quoteColumns(colNames, session.engine.Quote, ","))
@@ -353,7 +353,7 @@ func (session *Session) innerInsert(bean interface{}) (int64, error) {
 
 	var tableName = session.statement.TableName()
 	var output string
-	if session.engine.dialect.DBType() == core.MSSQL && len(table.AutoIncrement) > 0 {
+	if session.engine.dialect.DBType() == phoenixormcore.MSSQL && len(table.AutoIncrement) > 0 {
 		output = fmt.Sprintf(" OUTPUT Inserted.%s", table.AutoIncrement)
 	}
 
@@ -363,7 +363,7 @@ func (session *Session) innerInsert(bean interface{}) (int64, error) {
 	}
 
 	if len(colPlaces) <= 0 {
-		if session.engine.dialect.DBType() == core.MYSQL {
+		if session.engine.dialect.DBType() == phoenixormcore.MYSQL {
 			if _, err := buf.WriteString(" VALUES ()"); err != nil {
 				return 0, err
 			}
@@ -425,7 +425,7 @@ func (session *Session) innerInsert(bean interface{}) (int64, error) {
 		}
 	}
 
-	if len(table.AutoIncrement) > 0 && session.engine.dialect.DBType() == core.POSTGRES {
+	if len(table.AutoIncrement) > 0 && session.engine.dialect.DBType() == phoenixormcore.POSTGRES {
 		if _, err := buf.WriteString(" RETURNING " + session.engine.Quote(table.AutoIncrement)); err != nil {
 			return 0, err
 		}
@@ -464,7 +464,7 @@ func (session *Session) innerInsert(bean interface{}) (int64, error) {
 
 	// for postgres, many of them didn't implement lastInsertId, so we should
 	// implemented it ourself.
-	if session.engine.dialect.DBType() == core.ORACLE && len(table.AutoIncrement) > 0 {
+	if session.engine.dialect.DBType() == phoenixormcore.ORACLE && len(table.AutoIncrement) > 0 {
 		res, err := session.queryBytes("select seq_atable.currval from dual", args...)
 		if err != nil {
 			return 0, err
@@ -505,7 +505,7 @@ func (session *Session) innerInsert(bean interface{}) (int64, error) {
 		aiValue.Set(int64ToIntValue(id, aiValue.Type()))
 
 		return 1, nil
-	} else if len(table.AutoIncrement) > 0 && (session.engine.dialect.DBType() == core.POSTGRES || session.engine.dialect.DBType() == core.MSSQL) {
+	} else if len(table.AutoIncrement) > 0 && (session.engine.dialect.DBType() == phoenixormcore.POSTGRES || session.engine.dialect.DBType() == phoenixormcore.MSSQL) {
 		res, err := session.queryBytes(sqlStr, args...)
 
 		if err != nil {
@@ -621,7 +621,7 @@ func (session *Session) genInsertColumns(bean interface{}) ([]string, []interfac
 	args := make([]interface{}, 0, len(table.ColumnsSeq()))
 
 	for _, col := range table.Columns() {
-		if col.MapType == core.ONLYFROMDB {
+		if col.MapType == phoenixormcore.ONLYFROMDB {
 			continue
 		}
 
@@ -674,7 +674,7 @@ func (session *Session) genInsertColumns(bean interface{}) ([]string, []interfac
 
 		// !evalphobia! set fieldValue as nil when column is nullable and zero-value
 		if _, ok := getFlagForColumn(session.statement.nullableMap, col); ok {
-			if col.Nullable && isZero(fieldValue.Interface()) {
+			if col.Nullable && isZeroValue(fieldValue) {
 				var nilValue *int
 				fieldValue = reflect.ValueOf(nilValue)
 			}
@@ -729,66 +729,7 @@ func (session *Session) insertMapInterface(m map[string]interface{}) (int64, err
 		args = append(args, m[colName])
 	}
 
-	w := builder.NewWriter()
-	if session.statement.cond.IsValid() {
-		if _, err := w.WriteString(fmt.Sprintf("INSERT INTO %s (", session.engine.Quote(tableName))); err != nil {
-			return 0, err
-		}
-
-		if err := writeStrings(w, append(columns, exprs.colNames...), "`", "`"); err != nil {
-			return 0, err
-		}
-
-		if _, err := w.WriteString(") SELECT "); err != nil {
-			return 0, err
-		}
-
-		if err := session.statement.writeArgs(w, args); err != nil {
-			return 0, err
-		}
-
-		if len(exprs.args) > 0 {
-			if _, err := w.WriteString(","); err != nil {
-				return 0, err
-			}
-			if err := exprs.writeArgs(w); err != nil {
-				return 0, err
-			}
-		}
-
-		if _, err := w.WriteString(fmt.Sprintf(" FROM %s WHERE ", session.engine.Quote(tableName))); err != nil {
-			return 0, err
-		}
-
-		if err := session.statement.cond.WriteTo(w); err != nil {
-			return 0, err
-		}
-	} else {
-		qm := strings.Repeat("?,", len(columns))
-		qm = qm[:len(qm)-1]
-
-		if _, err := w.WriteString(fmt.Sprintf("INSERT INTO %s (`%s`) VALUES (%s)", session.engine.Quote(tableName), strings.Join(columns, "`,`"), qm)); err != nil {
-			return 0, err
-		}
-		w.Append(args...)
-	}
-
-	sql := w.String()
-	args = w.Args()
-
-	if err := session.cacheInsert(tableName); err != nil {
-		return 0, err
-	}
-
-	res, err := session.exec(sql, args...)
-	if err != nil {
-		return 0, err
-	}
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-	return affected, nil
+	return session.insertMap(columns, args)
 }
 
 func (session *Session) insertMapString(m map[string]string) (int64, error) {
@@ -808,6 +749,7 @@ func (session *Session) insertMapString(m map[string]string) (int64, error) {
 			columns = append(columns, k)
 		}
 	}
+
 	sort.Strings(columns)
 
 	var args = make([]interface{}, 0, len(m))
@@ -815,7 +757,18 @@ func (session *Session) insertMapString(m map[string]string) (int64, error) {
 		args = append(args, m[colName])
 	}
 
+	return session.insertMap(columns, args)
+}
+
+func (session *Session) insertMap(columns []string, args []interface{}) (int64, error) {
+	tableName := session.statement.TableName()
+	if len(tableName) <= 0 {
+		return 0, ErrTableNotFound
+	}
+
+	exprs := session.statement.exprColumns
 	w := builder.NewWriter()
+	// if insert where
 	if session.statement.cond.IsValid() {
 		if _, err := w.WriteString(fmt.Sprintf("INSERT INTO %s (", session.engine.Quote(tableName))); err != nil {
 			return 0, err
@@ -853,10 +806,29 @@ func (session *Session) insertMapString(m map[string]string) (int64, error) {
 		qm := strings.Repeat("?,", len(columns))
 		qm = qm[:len(qm)-1]
 
-		if _, err := w.WriteString(fmt.Sprintf("INSERT INTO %s (`%s`) VALUES (%s)", session.engine.Quote(tableName), strings.Join(columns, "`,`"), qm)); err != nil {
+		if _, err := w.WriteString(fmt.Sprintf("INSERT INTO %s (", session.engine.Quote(tableName))); err != nil {
 			return 0, err
 		}
+
+		if err := writeStrings(w, append(columns, exprs.colNames...), "`", "`"); err != nil {
+			return 0, err
+		}
+		if _, err := w.WriteString(fmt.Sprintf(") VALUES (%s", qm)); err != nil {
+			return 0, err
+		}
+
 		w.Append(args...)
+		if len(exprs.args) > 0 {
+			if _, err := w.WriteString(","); err != nil {
+				return 0, err
+			}
+			if err := exprs.writeArgs(w); err != nil {
+				return 0, err
+			}
+		}
+		if _, err := w.WriteString(")"); err != nil {
+			return 0, err
+		}
 	}
 
 	sql := w.String()

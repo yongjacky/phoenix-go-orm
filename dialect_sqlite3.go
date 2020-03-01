@@ -11,7 +11,7 @@ import (
 	"regexp"
 	"strings"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 var (
@@ -144,42 +144,42 @@ var (
 )
 
 type sqlite3 struct {
-	core.Base
+	phoenixormcore.Base
 }
 
-func (db *sqlite3) Init(d *core.DB, uri *core.Uri, drivername, dataSourceName string) error {
+func (db *sqlite3) Init(d *phoenixormcore.DB, uri *phoenixormcore.Uri, drivername, dataSourceName string) error {
 	return db.Base.Init(d, db, uri, drivername, dataSourceName)
 }
 
-func (db *sqlite3) SqlType(c *core.Column) string {
+func (db *sqlite3) SqlType(c *phoenixormcore.Column) string {
 	switch t := c.SQLType.Name; t {
-	case core.Bool:
+	case phoenixormcore.Bool:
 		if c.Default == "true" {
 			c.Default = "1"
 		} else if c.Default == "false" {
 			c.Default = "0"
 		}
-		return core.Integer
-	case core.Date, core.DateTime, core.TimeStamp, core.Time:
-		return core.DateTime
-	case core.TimeStampz:
-		return core.Text
-	case core.Char, core.Varchar, core.NVarchar, core.TinyText,
-		core.Text, core.MediumText, core.LongText, core.Json:
-		return core.Text
-	case core.Bit, core.TinyInt, core.SmallInt, core.MediumInt, core.Int, core.Integer, core.BigInt:
-		return core.Integer
-	case core.Float, core.Double, core.Real:
-		return core.Real
-	case core.Decimal, core.Numeric:
-		return core.Numeric
-	case core.TinyBlob, core.Blob, core.MediumBlob, core.LongBlob, core.Bytea, core.Binary, core.VarBinary:
-		return core.Blob
-	case core.Serial, core.BigSerial:
+		return phoenixormcore.Integer
+	case phoenixormcore.Date, phoenixormcore.DateTime, phoenixormcore.TimeStamp, phoenixormcore.Time:
+		return phoenixormcore.DateTime
+	case phoenixormcore.TimeStampz:
+		return phoenixormcore.Text
+	case phoenixormcore.Char, phoenixormcore.Varchar, phoenixormcore.NVarchar, phoenixormcore.TinyText,
+		phoenixormcore.Text, phoenixormcore.MediumText, phoenixormcore.LongText, phoenixormcore.Json:
+		return phoenixormcore.Text
+	case phoenixormcore.Bit, phoenixormcore.TinyInt, phoenixormcore.SmallInt, phoenixormcore.MediumInt, phoenixormcore.Int, phoenixormcore.Integer, phoenixormcore.BigInt:
+		return phoenixormcore.Integer
+	case phoenixormcore.Float, phoenixormcore.Double, phoenixormcore.Real:
+		return phoenixormcore.Real
+	case phoenixormcore.Decimal, phoenixormcore.Numeric:
+		return phoenixormcore.Numeric
+	case phoenixormcore.TinyBlob, phoenixormcore.Blob, phoenixormcore.MediumBlob, phoenixormcore.LongBlob, phoenixormcore.Bytea, phoenixormcore.Binary, phoenixormcore.VarBinary:
+		return phoenixormcore.Blob
+	case phoenixormcore.Serial, phoenixormcore.BigSerial:
 		c.IsPrimaryKey = true
 		c.IsAutoIncrement = true
 		c.Nullable = false
-		return core.Integer
+		return phoenixormcore.Integer
 	default:
 		return t
 	}
@@ -228,14 +228,14 @@ func (db *sqlite3) TableCheckSql(tableName string) (string, []interface{}) {
 	return "SELECT name FROM sqlite_master WHERE type='table' and name = ?", args
 }
 
-func (db *sqlite3) DropIndexSql(tableName string, index *core.Index) string {
+func (db *sqlite3) DropIndexSql(tableName string, index *phoenixormcore.Index) string {
 	// var unique string
 	quote := db.Quote
 	idxName := index.Name
 
 	if !strings.HasPrefix(idxName, "UQE_") &&
 		!strings.HasPrefix(idxName, "IDX_") {
-		if index.Type == core.UniqueType {
+		if index.Type == phoenixormcore.UniqueType {
 			idxName = fmt.Sprintf("UQE_%v_%v", tableName, index.Name)
 		} else {
 			idxName = fmt.Sprintf("IDX_%v_%v", tableName, index.Name)
@@ -298,9 +298,9 @@ func splitColStr(colStr string) []string {
 	return results
 }
 
-func parseString(colStr string) (*core.Column, error) {
+func parseString(colStr string) (*phoenixormcore.Column, error) {
 	fields := splitColStr(colStr)
-	col := new(core.Column)
+	col := new(phoenixormcore.Column)
 	col.Indexes = make(map[string]int)
 	col.Nullable = true
 	col.DefaultIsEmpty = true
@@ -310,7 +310,7 @@ func parseString(colStr string) (*core.Column, error) {
 			col.Name = strings.Trim(strings.Trim(field, "`[] "), `"`)
 			continue
 		} else if idx == 1 {
-			col.SQLType = core.SQLType{Name: field, DefaultLength: 0, DefaultLength2: 0}
+			col.SQLType = phoenixormcore.SQLType{Name: field, DefaultLength: 0, DefaultLength2: 0}
 			continue
 		}
 		switch field {
@@ -332,7 +332,7 @@ func parseString(colStr string) (*core.Column, error) {
 	return col, nil
 }
 
-func (db *sqlite3) GetColumns(tableName string) ([]string, map[string]*core.Column, error) {
+func (db *sqlite3) GetColumns(tableName string) ([]string, map[string]*phoenixormcore.Column, error) {
 	args := []interface{}{tableName}
 	s := "SELECT sql FROM sqlite_master WHERE type='table' and name = ?"
 	db.LogSQL(s, args)
@@ -359,7 +359,7 @@ func (db *sqlite3) GetColumns(tableName string) ([]string, map[string]*core.Colu
 	nEnd := strings.LastIndex(name, ")")
 	reg := regexp.MustCompile(`[^\(,\)]*(\([^\(]*\))?`)
 	colCreates := reg.FindAllString(name[nStart+1:nEnd], -1)
-	cols := make(map[string]*core.Column)
+	cols := make(map[string]*phoenixormcore.Column)
 	colSeq := make([]string, 0)
 
 	for _, colStr := range colCreates {
@@ -389,7 +389,7 @@ func (db *sqlite3) GetColumns(tableName string) ([]string, map[string]*core.Colu
 	return colSeq, cols, nil
 }
 
-func (db *sqlite3) GetTables() ([]*core.Table, error) {
+func (db *sqlite3) GetTables() ([]*phoenixormcore.Table, error) {
 	args := []interface{}{}
 	s := "SELECT name FROM sqlite_master WHERE type='table'"
 	db.LogSQL(s, args)
@@ -400,9 +400,9 @@ func (db *sqlite3) GetTables() ([]*core.Table, error) {
 	}
 	defer rows.Close()
 
-	tables := make([]*core.Table, 0)
+	tables := make([]*phoenixormcore.Table, 0)
 	for rows.Next() {
-		table := core.NewEmptyTable()
+		table := phoenixormcore.NewEmptyTable()
 		err = rows.Scan(&table.Name)
 		if err != nil {
 			return nil, err
@@ -415,7 +415,7 @@ func (db *sqlite3) GetTables() ([]*core.Table, error) {
 	return tables, nil
 }
 
-func (db *sqlite3) GetIndexes(tableName string) (map[string]*core.Index, error) {
+func (db *sqlite3) GetIndexes(tableName string) (map[string]*phoenixormcore.Index, error) {
 	args := []interface{}{tableName}
 	s := "SELECT sql FROM sqlite_master WHERE type='index' and tbl_name = ?"
 	db.LogSQL(s, args)
@@ -426,7 +426,7 @@ func (db *sqlite3) GetIndexes(tableName string) (map[string]*core.Index, error) 
 	}
 	defer rows.Close()
 
-	indexes := make(map[string]*core.Index, 0)
+	indexes := make(map[string]*phoenixormcore.Index, 0)
 	for rows.Next() {
 		var tmpSQL sql.NullString
 		err = rows.Scan(&tmpSQL)
@@ -439,7 +439,7 @@ func (db *sqlite3) GetIndexes(tableName string) (map[string]*core.Index, error) 
 		}
 		sql := tmpSQL.String
 
-		index := new(core.Index)
+		index := new(phoenixormcore.Index)
 		nNStart := strings.Index(sql, "INDEX")
 		nNEnd := strings.Index(sql, "ON")
 		if nNStart == -1 || nNEnd == -1 {
@@ -456,9 +456,9 @@ func (db *sqlite3) GetIndexes(tableName string) (map[string]*core.Index, error) 
 		}
 
 		if strings.HasPrefix(sql, "CREATE UNIQUE INDEX") {
-			index.Type = core.UniqueType
+			index.Type = phoenixormcore.UniqueType
 		} else {
-			index.Type = core.IndexType
+			index.Type = phoenixormcore.IndexType
 		}
 
 		nStart := strings.Index(sql, "(")
@@ -476,17 +476,17 @@ func (db *sqlite3) GetIndexes(tableName string) (map[string]*core.Index, error) 
 	return indexes, nil
 }
 
-func (db *sqlite3) Filters() []core.Filter {
-	return []core.Filter{&core.IdFilter{}}
+func (db *sqlite3) Filters() []phoenixormcore.Filter {
+	return []phoenixormcore.Filter{&phoenixormcore.IdFilter{}}
 }
 
 type sqlite3Driver struct {
 }
 
-func (p *sqlite3Driver) Parse(driverName, dataSourceName string) (*core.Uri, error) {
+func (p *sqlite3Driver) Parse(driverName, dataSourceName string) (*phoenixormcore.Uri, error) {
 	if strings.Contains(dataSourceName, "?") {
 		dataSourceName = dataSourceName[:strings.Index(dataSourceName, "?")]
 	}
 
-	return &core.Uri{DbType: core.SQLITE, DbName: dataSourceName}, nil
+	return &phoenixormcore.Uri{DbType: phoenixormcore.SQLITE, DbName: dataSourceName}, nil
 }

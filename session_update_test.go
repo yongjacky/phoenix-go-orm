@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestUpdateMap(t *testing.T) {
@@ -299,47 +299,20 @@ func TestUpdate1(t *testing.T) {
 	// update by id
 	user := Userinfo{Username: "xxx", Height: 1.2}
 	cnt, err := testEngine.ID(ori.Uid).Update(&user)
-	if err != nil {
-		t.Error(err)
-		panic(err)
-	}
-	if cnt != 1 {
-		err = errors.New("update not returned 1")
-		t.Error(err)
-		panic(err)
-		return
-	}
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, cnt)
 
 	condi := Condi{"username": "zzz", "departname": ""}
 	cnt, err = testEngine.Table(&user).ID(ori.Uid).Update(&condi)
-	if err != nil {
-		t.Error(err)
-		panic(err)
-	}
-	if cnt != 1 {
-		err = errors.New("update not returned 1")
-		t.Error(err)
-		panic(err)
-		return
-	}
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, cnt)
 
 	cnt, err = testEngine.Update(&Userinfo{Username: "yyy"}, &user)
-	if err != nil {
-		t.Error(err)
-		panic(err)
-	}
-	total, err := testEngine.Count(&user)
-	if err != nil {
-		t.Error(err)
-		panic(err)
-	}
+	assert.NoError(t, err)
 
-	if cnt != total {
-		err = errors.New("insert not returned 1")
-		t.Error(err)
-		panic(err)
-		return
-	}
+	total, err := testEngine.Count(&user)
+	assert.NoError(t, err)
+	assert.EqualValues(t, cnt, total)
 
 	// nullable update
 	{
@@ -446,17 +419,8 @@ func TestUpdate1(t *testing.T) {
 	}
 
 	cnt, err = testEngine.ID(a.Id).Update(&Article{Name: "6"})
-	if err != nil {
-		t.Error(err)
-		panic(err)
-	}
-
-	if cnt != 1 {
-		err = errors.New(fmt.Sprintf("insert not returned 1 but %d", cnt))
-		t.Error(err)
-		panic(err)
-		return
-	}
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, cnt)
 
 	var s = "test"
 
@@ -474,20 +438,8 @@ func TestUpdate1(t *testing.T) {
 	col3 := &UpdateAllCols{}
 	has, err = testEngine.ID(col2.Id).Get(col3)
 	assert.NoError(t, err)
-
-	if !has {
-		err = errors.New(fmt.Sprintf("cannot get id %d", col2.Id))
-		t.Error(err)
-		panic(err)
-		return
-	}
-
-	if *col2 != *col3 {
-		err = errors.New(fmt.Sprintf("col2 should eq col3"))
-		t.Error(err)
-		panic(err)
-		return
-	}
+	assert.True(t, has)
+	assert.EqualValues(t, *col2, *col3)
 
 	{
 
@@ -515,24 +467,9 @@ func TestUpdate1(t *testing.T) {
 
 		col3 := &UpdateMustCols{}
 		has, err := testEngine.ID(col2.Id).Get(col3)
-		if err != nil {
-			t.Error(err)
-			panic(err)
-		}
-
-		if !has {
-			err = errors.New(fmt.Sprintf("cannot get id %d", col2.Id))
-			t.Error(err)
-			panic(err)
-			return
-		}
-
-		if *col2 != *col3 {
-			err = errors.New(fmt.Sprintf("col2 should eq col3"))
-			t.Error(err)
-			panic(err)
-			return
-		}
+		assert.NoError(t, err)
+		assert.True(t, has)
+		assert.EqualValues(t, *col2, *col3)
 	}
 }
 
@@ -754,7 +691,7 @@ func TestUpdateSameMapper(t *testing.T) {
 	testEngine.UnMapType(rValue(new(UpdateAllCols)).Type())
 	testEngine.UnMapType(rValue(new(UpdateMustCols)).Type())
 	testEngine.UnMapType(rValue(new(UpdateIncr)).Type())
-	testEngine.SetMapper(core.SameMapper{})
+	testEngine.SetMapper(phoenixormcore.SameMapper{})
 	defer func() {
 		testEngine.UnMapType(rValue(new(Userinfo)).Type())
 		testEngine.UnMapType(rValue(new(Condi)).Type())
@@ -821,13 +758,7 @@ func TestUpdateSameMapper(t *testing.T) {
 
 	cnt, err = testEngine.ID(a.Id).Update(&Article{Name: "6"})
 	assert.NoError(t, err)
-
-	if cnt != 1 {
-		err = errors.New(fmt.Sprintf("insert not returned 1 but %d", cnt))
-		t.Error(err)
-		panic(err)
-		return
-	}
+	assert.EqualValues(t, 1, cnt)
 
 	col1 := &UpdateAllCols{}
 	err = testEngine.Sync(col1)
@@ -843,20 +774,8 @@ func TestUpdateSameMapper(t *testing.T) {
 	col3 := &UpdateAllCols{}
 	has, err = testEngine.ID(col2.Id).Get(col3)
 	assert.NoError(t, err)
-
-	if !has {
-		err = errors.New(fmt.Sprintf("cannot get id %d", col2.Id))
-		t.Error(err)
-		panic(err)
-		return
-	}
-
-	if *col2 != *col3 {
-		err = errors.New(fmt.Sprintf("col2 should eq col3"))
-		t.Error(err)
-		panic(err)
-		return
-	}
+	assert.True(t, has)
+	assert.EqualValues(t, *col2, *col3)
 
 	{
 		col1 := &UpdateMustCols{}
@@ -875,20 +794,8 @@ func TestUpdateSameMapper(t *testing.T) {
 		col3 := &UpdateMustCols{}
 		has, err := testEngine.ID(col2.Id).Get(col3)
 		assert.NoError(t, err)
-
-		if !has {
-			err = errors.New(fmt.Sprintf("cannot get id %d", col2.Id))
-			t.Error(err)
-			panic(err)
-			return
-		}
-
-		if *col2 != *col3 {
-			err = errors.New(fmt.Sprintf("col2 should eq col3"))
-			t.Error(err)
-			panic(err)
-			return
-		}
+		assert.True(t, has)
+		assert.EqualValues(t, *col2, *col3)
 	}
 
 	{
@@ -1420,4 +1327,122 @@ func TestUpdateExprs(t *testing.T) {
 	assert.True(t, has)
 	assert.EqualValues(t, 2, ue.NumIssues)
 	assert.EqualValues(t, "lunny xiao", ue.Name)
+}
+
+func TestUpdateAlias(t *testing.T) {
+	assert.NoError(t, prepareEngine())
+
+	type UpdateAlias struct {
+		Id        int64
+		NumIssues int
+		Name      string
+	}
+
+	assertSync(t, new(UpdateAlias))
+
+	_, err := testEngine.Insert(&UpdateAlias{
+		NumIssues: 1,
+		Name:      "lunny",
+	})
+	assert.NoError(t, err)
+
+	_, err = testEngine.Alias("ua").Where("ua.id = ?", 1).Update(&UpdateAlias{
+		NumIssues: 2,
+		Name:      "lunny xiao",
+	})
+	assert.NoError(t, err)
+
+	var ue UpdateAlias
+	has, err := testEngine.Get(&ue)
+	assert.NoError(t, err)
+	assert.True(t, has)
+	assert.EqualValues(t, 2, ue.NumIssues)
+	assert.EqualValues(t, "lunny xiao", ue.Name)
+}
+
+func TestUpdateExprs2(t *testing.T) {
+	assert.NoError(t, prepareEngine())
+
+	type UpdateExprsRelease struct {
+		Id         int64
+		RepoId     int
+		IsTag      bool
+		IsDraft    bool
+		NumCommits int
+		Sha1       string
+	}
+
+	assertSync(t, new(UpdateExprsRelease))
+
+	var uer = UpdateExprsRelease{
+		RepoId:     1,
+		IsTag:      false,
+		IsDraft:    false,
+		NumCommits: 1,
+		Sha1:       "sha1",
+	}
+	inserted, err := testEngine.Insert(&uer)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, inserted)
+
+	updated, err := testEngine.
+		Where("repo_id = ? AND is_tag = ?", 1, false).
+		SetExpr("is_draft", true).
+		SetExpr("num_commits", 0).
+		SetExpr("sha1", "").
+		Update(new(UpdateExprsRelease))
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, updated)
+
+	var uer2 UpdateExprsRelease
+	has, err := testEngine.ID(uer.Id).Get(&uer2)
+	assert.NoError(t, err)
+	assert.True(t, has)
+	assert.EqualValues(t, 1, uer2.RepoId)
+	assert.EqualValues(t, false, uer2.IsTag)
+	assert.EqualValues(t, true, uer2.IsDraft)
+	assert.EqualValues(t, 0, uer2.NumCommits)
+	assert.EqualValues(t, "", uer2.Sha1)
+}
+
+func TestUpdateMap3(t *testing.T) {
+	assert.NoError(t, prepareEngine())
+
+	type UpdateMapUser struct {
+		Id   uint64 `xorm:"PK autoincr"`
+		Name string `xorm:""`
+		Ver  uint64 `xorm:"version"`
+	}
+
+	oldMapper := testEngine.GetColumnMapper()
+	defer func() {
+		testEngine.SetColumnMapper(oldMapper)
+	}()
+
+	mapper := phoenixormcore.NewPrefixMapper(phoenixormcore.SnakeMapper{}, "F")
+	testEngine.SetColumnMapper(mapper)
+
+	assertSync(t, new(UpdateMapUser))
+
+	_, err := testEngine.Table(new(UpdateMapUser)).Insert(map[string]interface{}{
+		"Fname": "first user name",
+		"Fver":  1,
+	})
+	assert.NoError(t, err)
+
+	update := map[string]interface{}{
+		"Fname": "user name",
+		"Fver":  1,
+	}
+	rows, err := testEngine.Table(new(UpdateMapUser)).ID(1).Update(update)
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, rows)
+
+	update = map[string]interface{}{
+		"Name": "user name",
+		"Ver":  1,
+	}
+	rows, err = testEngine.Table(new(UpdateMapUser)).ID(1).Update(update)
+	assert.Error(t, err)
+	assert.EqualValues(t, 0, rows)
 }

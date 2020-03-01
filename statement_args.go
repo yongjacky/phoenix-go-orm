@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
 func quoteNeeded(a interface{}) bool {
@@ -80,7 +80,7 @@ const insertSelectPlaceHolder = true
 func (statement *Statement) writeArg(w *builder.BytesWriter, arg interface{}) error {
 	switch argv := arg.(type) {
 	case bool:
-		if statement.Engine.dialect.DBType() == core.MSSQL {
+		if statement.Engine.dialect.DBType() == phoenixormcore.MSSQL {
 			if argv {
 				if _, err := w.WriteString("1"); err != nil {
 					return err
@@ -119,7 +119,7 @@ func (statement *Statement) writeArg(w *builder.BytesWriter, arg interface{}) er
 			w.Append(arg)
 		} else {
 			var convertFunc = convertStringSingleQuote
-			if statement.Engine.dialect.DBType() == core.MYSQL {
+			if statement.Engine.dialect.DBType() == phoenixormcore.MYSQL {
 				convertFunc = convertString
 			}
 			if _, err := w.WriteString(convertArg(arg, convertFunc)); err != nil {

@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
-func (engine *Engine) buildConds(table *core.Table, bean interface{},
+func (engine *Engine) buildConds(table *phoenixormcore.Table, bean interface{},
 	includeVersion bool, includeUpdated bool, includeNil bool,
 	includeAutoIncr bool, allUseBool bool, useAllCols bool, unscoped bool,
 	mustColumnMap map[string]bool, tableName, aliasName string, addedTableName bool) (builder.Cond, error) {
@@ -31,7 +31,7 @@ func (engine *Engine) buildConds(table *core.Table, bean interface{},
 			continue
 		}
 
-		if engine.dialect.DBType() == core.MSSQL && (col.SQLType.Name == core.Text || col.SQLType.IsBlob() || col.SQLType.Name == core.TimeStampz) {
+		if engine.dialect.DBType() == phoenixormcore.MSSQL && (col.SQLType.Name == phoenixormcore.Text || col.SQLType.IsBlob() || col.SQLType.Name == phoenixormcore.TimeStampz) {
 			continue
 		}
 		if col.SQLType.IsJson() {
@@ -130,13 +130,13 @@ func (engine *Engine) buildConds(table *core.Table, bean interface{},
 			t := int64(fieldValue.Uint())
 			val = reflect.ValueOf(&t).Interface()
 		case reflect.Struct:
-			if fieldType.ConvertibleTo(core.TimeType) {
-				t := fieldValue.Convert(core.TimeType).Interface().(time.Time)
+			if fieldType.ConvertibleTo(phoenixormcore.TimeType) {
+				t := fieldValue.Convert(phoenixormcore.TimeType).Interface().(time.Time)
 				if !requiredField && (t.IsZero() || !fieldValue.IsValid()) {
 					continue
 				}
 				val = engine.formatColTime(col, t)
-			} else if _, ok := reflect.New(fieldType).Interface().(core.Conversion); ok {
+			} else if _, ok := reflect.New(fieldType).Interface().(phoenixormcore.Conversion); ok {
 				continue
 			} else if valNul, ok := fieldValue.Interface().(driver.Valuer); ok {
 				val, _ = valNul.Value()

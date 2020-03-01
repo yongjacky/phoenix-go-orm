@@ -11,7 +11,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // Get retrieve one record from database, bean's non-empty fields
@@ -99,7 +99,7 @@ func (session *Session) get(bean interface{}) (bool, error) {
 	return true, nil
 }
 
-func (session *Session) nocacheGet(beanKind reflect.Kind, table *core.Table, bean interface{}, sqlStr string, args ...interface{}) (bool, error) {
+func (session *Session) nocacheGet(beanKind reflect.Kind, table *phoenixormcore.Table, bean interface{}, sqlStr string, args ...interface{}) (bool, error) {
 	rows, err := session.queryRows(sqlStr, args...)
 	if err != nil {
 		return false, err
@@ -283,7 +283,7 @@ func (session *Session) cacheGet(bean interface{}, sqlStr string, args ...interf
 
 	session.engine.logger.Debug("[cacheGet] find sql:", newsql, args)
 	table := session.statement.RefTable
-	ids, err := core.GetCacheSql(cacher, tableName, newsql, args)
+	ids, err := phoenixormcore.GetCacheSql(cacher, tableName, newsql, args)
 	if err != nil {
 		var res = make([]string, len(table.PrimaryKeys))
 		rows, err := session.NoCache().queryRows(newsql, args...)
@@ -301,7 +301,7 @@ func (session *Session) cacheGet(bean interface{}, sqlStr string, args ...interf
 			return false, ErrCacheFailed
 		}
 
-		var pk core.PK = make([]interface{}, len(table.PrimaryKeys))
+		var pk phoenixormcore.PK = make([]interface{}, len(table.PrimaryKeys))
 		for i, col := range table.PKColumns() {
 			if col.SQLType.IsText() {
 				pk[i] = res[i]
@@ -316,9 +316,9 @@ func (session *Session) cacheGet(bean interface{}, sqlStr string, args ...interf
 			}
 		}
 
-		ids = []core.PK{pk}
+		ids = []phoenixormcore.PK{pk}
 		session.engine.logger.Debug("[cacheGet] cache ids:", newsql, ids)
-		err = core.PutCacheSql(cacher, ids, tableName, newsql, args)
+		err = phoenixormcore.PutCacheSql(cacher, ids, tableName, newsql, args)
 		if err != nil {
 			return false, err
 		}

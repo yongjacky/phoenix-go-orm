@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"time"
 
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
 func (session *Session) queryPreprocess(sqlStr *string, paramStr ...interface{}) {
@@ -22,12 +22,14 @@ func (session *Session) queryPreprocess(sqlStr *string, paramStr ...interface{})
 	session.lastSQLArgs = paramStr
 }
 
-func (session *Session) queryRows(sqlStr string, args ...interface{}) (*core.Rows, error) {
+func (session *Session) queryRows(sqlStr string, args ...interface{}) (*phoenixormcore.Rows, error) {
 	defer session.resetStatement()
 
 	session.queryPreprocess(&sqlStr, args...)
 
-	if session.engine.showSQL {
+	if session.showSQL {
+		session.lastSQL = sqlStr
+		session.lastSQLArgs = args
 		if session.engine.showExecTime {
 			b4ExecTime := time.Now()
 			defer func() {
@@ -48,7 +50,7 @@ func (session *Session) queryRows(sqlStr string, args ...interface{}) (*core.Row
 	}
 
 	if session.isAutoCommit {
-		var db *core.DB
+		var db *phoenixormcore.DB
 		if session.sessionType == groupSession {
 			db = session.engine.engineGroup.Slave().DB()
 		} else {
@@ -83,8 +85,8 @@ func (session *Session) queryRows(sqlStr string, args ...interface{}) (*core.Row
 	return rows, nil
 }
 
-func (session *Session) queryRow(sqlStr string, args ...interface{}) *core.Row {
-	return core.NewRow(session.queryRows(sqlStr, args...))
+func (session *Session) queryRow(sqlStr string, args ...interface{}) *phoenixormcore.Row {
+	return phoenixormcore.NewRow(session.queryRows(sqlStr, args...))
 }
 
 func value2Bytes(rawValue *reflect.Value) ([]byte, error) {
@@ -95,7 +97,7 @@ func value2Bytes(rawValue *reflect.Value) ([]byte, error) {
 	return []byte(str), nil
 }
 
-func row2map(rows *core.Rows, fields []string) (resultsMap map[string][]byte, err error) {
+func row2map(rows *phoenixormcore.Rows, fields []string) (resultsMap map[string][]byte, err error) {
 	result := make(map[string][]byte)
 	scanResultContainers := make([]interface{}, len(fields))
 	for i := 0; i < len(fields); i++ {
@@ -123,7 +125,7 @@ func row2map(rows *core.Rows, fields []string) (resultsMap map[string][]byte, er
 	return result, nil
 }
 
-func rows2maps(rows *core.Rows) (resultsSlice []map[string][]byte, err error) {
+func rows2maps(rows *phoenixormcore.Rows) (resultsSlice []map[string][]byte, err error) {
 	fields, err := rows.Columns()
 	if err != nil {
 		return nil, err

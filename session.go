@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 type sessionType int
@@ -27,9 +27,9 @@ const (
 // Session keep a pointer to sql.DB and provides all execution of all
 // kind of database operations.
 type Session struct {
-	db                     *core.DB
+	db                     *phoenixormcore.DB
 	engine                 *Engine
-	tx                     *core.Tx
+	tx                     *phoenixormcore.Tx
 	statement              Statement
 	isAutoCommit           bool
 	isCommitedOrRollbacked bool
@@ -51,12 +51,13 @@ type Session struct {
 	afterProcessors []executedProcessor
 
 	prepareStmt bool
-	stmtCache   map[uint32]*core.Stmt //key: hash.Hash32 of (queryStr, len(queryStr))
+	stmtCache   map[uint32]*phoenixormcore.Stmt //key: hash.Hash32 of (queryStr, len(queryStr))
 
 	// !evalphobia! stored the last executed query on this session
 	//beforeSQLExec func(string, ...interface{})
 	lastSQL     string
 	lastSQLArgs []interface{}
+	showSQL     bool
 
 	ctx         context.Context
 	sessionType sessionType
@@ -72,6 +73,7 @@ func (session *Session) Clone() *Session {
 func (session *Session) Init() {
 	session.statement.Init()
 	session.statement.Engine = session.engine
+	session.showSQL = session.engine.showSQL
 	session.isAutoCommit = true
 	session.isCommitedOrRollbacked = false
 	session.isAutoClose = false
@@ -84,7 +86,7 @@ func (session *Session) Init() {
 	session.afterDeleteBeans = make(map[interface{}]*[]func(interface{}), 0)
 	session.beforeClosures = make([]func(interface{}), 0)
 	session.afterClosures = make([]func(interface{}), 0)
-	session.stmtCache = make(map[uint32]*core.Stmt)
+	session.stmtCache = make(map[uint32]*phoenixormcore.Stmt)
 
 	session.afterProcessors = make([]executedProcessor, 0)
 
@@ -226,6 +228,16 @@ func (session *Session) Cascade(trueOrFalse ...bool) *Session {
 	return session
 }
 
+// MustLogSQL means record SQL or not and don't follow engine's setting
+func (session *Session) MustLogSQL(log ...bool) *Session {
+	if len(log) > 0 {
+		session.showSQL = log[0]
+	} else {
+		session.showSQL = true
+	}
+	return session
+}
+
 // NoCache ask this session do not retrieve data from cache system and
 // get data from database directly.
 func (session *Session) NoCache() *Session {
@@ -252,10 +264,10 @@ func (session *Session) Having(conditions string) *Session {
 }
 
 // DB db return the wrapper of sql.DB
-func (session *Session) DB() *core.DB {
+func (session *Session) DB() *phoenixormcore.DB {
 	if session.db == nil {
 		session.db = session.engine.db
-		session.stmtCache = make(map[uint32]*core.Stmt, 0)
+		session.stmtCache = make(map[uint32]*phoenixormcore.Stmt, 0)
 	}
 	return session.db
 }
@@ -279,7 +291,7 @@ func (session *Session) canCache() bool {
 	return true
 }
 
-func (session *Session) doPrepare(db *core.DB, sqlStr string) (stmt *core.Stmt, err error) {
+func (session *Session) doPrepare(db *phoenixormcore.DB, sqlStr string) (stmt *phoenixormcore.Stmt, err error) {
 	crc := crc32.ChecksumIEEE([]byte(sqlStr))
 	// TODO try hash(sqlStr+len(sqlStr))
 	var has bool
@@ -294,8 +306,8 @@ func (session *Session) doPrepare(db *core.DB, sqlStr string) (stmt *core.Stmt, 
 	return
 }
 
-func (session *Session) getField(dataStruct *reflect.Value, key string, table *core.Table, idx int) (*reflect.Value, error) {
-	var col *core.Column
+func (session *Session) getField(dataStruct *reflect.Value, key string, table *phoenixormcore.Table, idx int) (*reflect.Value, error) {
+	var col *phoenixormcore.Column
 	if col = table.GetColumnIdx(key, idx); col == nil {
 		return nil, ErrFieldIsNotExist{key, table.Name}
 	}
@@ -315,9 +327,9 @@ func (session *Session) getField(dataStruct *reflect.Value, key string, table *c
 // Cell cell is a result of one column field
 type Cell *interface{}
 
-func (session *Session) rows2Beans(rows *core.Rows, fields []string,
-	table *core.Table, newElemFunc func([]string) reflect.Value,
-	sliceValueSetFunc func(*reflect.Value, core.PK) error) error {
+func (session *Session) rows2Beans(rows *phoenixormcore.Rows, fields []string,
+	table *phoenixormcore.Table, newElemFunc func([]string) reflect.Value,
+	sliceValueSetFunc func(*reflect.Value, phoenixormcore.PK) error) error {
 	for rows.Next() {
 		var newValue = newElemFunc(fields)
 		bean := newValue.Interface()
@@ -343,7 +355,7 @@ func (session *Session) rows2Beans(rows *core.Rows, fields []string,
 	return nil
 }
 
-func (session *Session) row2Slice(rows *core.Rows, fields []string, bean interface{}) ([]interface{}, error) {
+func (session *Session) row2Slice(rows *phoenixormcore.Rows, fields []string, bean interface{}) ([]interface{}, error) {
 	for _, closure := range session.beforeClosures {
 		closure(bean)
 	}
@@ -365,7 +377,7 @@ func (session *Session) row2Slice(rows *core.Rows, fields []string, bean interfa
 	return scanResults, nil
 }
 
-func (session *Session) slice2Bean(scanResults []interface{}, fields []string, bean interface{}, dataStruct *reflect.Value, table *core.Table) (core.PK, error) {
+func (session *Session) slice2Bean(scanResults []interface{}, fields []string, bean interface{}, dataStruct *reflect.Value, table *phoenixormcore.Table) (phoenixormcore.PK, error) {
 	defer func() {
 		if b, hasAfterSet := bean.(AfterSetProcessor); hasAfterSet {
 			for ii, key := range fields {
@@ -409,7 +421,7 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 	}
 
 	var tempMap = make(map[string]int)
-	var pk core.PK
+	var pk phoenixormcore.PK
 	for ii, key := range fields {
 		var idx int
 		var ok bool
@@ -439,7 +451,7 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 		}
 
 		if fieldValue.CanAddr() {
-			if structConvert, ok := fieldValue.Addr().Interface().(core.Conversion); ok {
+			if structConvert, ok := fieldValue.Addr().Interface().(phoenixormcore.Conversion); ok {
 				if data, err := value2Bytes(&rawValue); err == nil {
 					if err := structConvert.FromDB(data); err != nil {
 						return nil, err
@@ -451,12 +463,12 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 			}
 		}
 
-		if _, ok := fieldValue.Interface().(core.Conversion); ok {
+		if _, ok := fieldValue.Interface().(phoenixormcore.Conversion); ok {
 			if data, err := value2Bytes(&rawValue); err == nil {
 				if fieldValue.Kind() == reflect.Ptr && fieldValue.IsNil() {
 					fieldValue.Set(reflect.New(fieldValue.Type().Elem()))
 				}
-				fieldValue.Interface().(core.Conversion).FromDB(data)
+				fieldValue.Interface().(phoenixormcore.Conversion).FromDB(data)
 			} else {
 				return nil, err
 			}
@@ -476,7 +488,7 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 			var bs []byte
 			if rawValueType.Kind() == reflect.String {
 				bs = []byte(vv.String())
-			} else if rawValueType.ConvertibleTo(core.BytesType) {
+			} else if rawValueType.ConvertibleTo(phoenixormcore.BytesType) {
 				bs = vv.Bytes()
 			} else {
 				return nil, fmt.Errorf("unsupported database data type: %s %v", key, rawValueType.Kind())
@@ -513,7 +525,7 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 			var bs []byte
 			if rawValueType.Kind() == reflect.String {
 				bs = []byte(vv.String())
-			} else if rawValueType.ConvertibleTo(core.BytesType) {
+			} else if rawValueType.ConvertibleTo(phoenixormcore.BytesType) {
 				bs = vv.Bytes()
 			}
 
@@ -595,16 +607,16 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 				fieldValue.SetUint(uint64(vv.Int()))
 			}
 		case reflect.Struct:
-			if fieldType.ConvertibleTo(core.TimeType) {
+			if fieldType.ConvertibleTo(phoenixormcore.TimeType) {
 				dbTZ := session.engine.DatabaseTZ
 				if col.TimeZone != nil {
 					dbTZ = col.TimeZone
 				}
 
-				if rawValueType == core.TimeType {
+				if rawValueType == phoenixormcore.TimeType {
 					hasAssigned = true
 
-					t := vv.Convert(core.TimeType).Interface().(time.Time)
+					t := vv.Convert(phoenixormcore.TimeType).Interface().(time.Time)
 
 					z, _ := t.Zone()
 					// set new location if database don't save timezone or give an incorrect timezone
@@ -616,8 +628,8 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 
 					t = t.In(session.engine.TZLocation)
 					fieldValue.Set(reflect.ValueOf(t).Convert(fieldType))
-				} else if rawValueType == core.IntType || rawValueType == core.Int64Type ||
-					rawValueType == core.Int32Type {
+				} else if rawValueType == phoenixormcore.IntType || rawValueType == phoenixormcore.Int64Type ||
+					rawValueType == phoenixormcore.Int32Type {
 					hasAssigned = true
 
 					t := time.Unix(vv.Int(), 0).In(session.engine.TZLocation)
@@ -684,7 +696,7 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 				if len(table.PrimaryKeys) != 1 {
 					return nil, errors.New("unsupported non or composited primary key cascade")
 				}
-				var pk = make(core.PK, len(table.PrimaryKeys))
+				var pk = make(phoenixormcore.PK, len(table.PrimaryKeys))
 				pk[0], err = asKind(vv, rawValueType)
 				if err != nil {
 					return nil, err
@@ -710,97 +722,97 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 			// !nashtsai! TODO merge duplicated codes above
 			switch fieldType {
 			// following types case matching ptr's native type, therefore assign ptr directly
-			case core.PtrStringType:
+			case phoenixormcore.PtrStringType:
 				if rawValueType.Kind() == reflect.String {
 					x := vv.String()
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrBoolType:
+			case phoenixormcore.PtrBoolType:
 				if rawValueType.Kind() == reflect.Bool {
 					x := vv.Bool()
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrTimeType:
-				if rawValueType == core.PtrTimeType {
+			case phoenixormcore.PtrTimeType:
+				if rawValueType == phoenixormcore.PtrTimeType {
 					hasAssigned = true
 					var x = rawValue.Interface().(time.Time)
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrFloat64Type:
+			case phoenixormcore.PtrFloat64Type:
 				if rawValueType.Kind() == reflect.Float64 {
 					x := vv.Float()
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrUint64Type:
+			case phoenixormcore.PtrUint64Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = uint64(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrInt64Type:
+			case phoenixormcore.PtrInt64Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					x := vv.Int()
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrFloat32Type:
+			case phoenixormcore.PtrFloat32Type:
 				if rawValueType.Kind() == reflect.Float64 {
 					var x = float32(vv.Float())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrIntType:
+			case phoenixormcore.PtrIntType:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = int(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrInt32Type:
+			case phoenixormcore.PtrInt32Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = int32(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrInt8Type:
+			case phoenixormcore.PtrInt8Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = int8(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrInt16Type:
+			case phoenixormcore.PtrInt16Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = int16(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrUintType:
+			case phoenixormcore.PtrUintType:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = uint(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.PtrUint32Type:
+			case phoenixormcore.PtrUint32Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = uint32(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.Uint8Type:
+			case phoenixormcore.Uint8Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = uint8(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.Uint16Type:
+			case phoenixormcore.Uint16Type:
 				if rawValueType.Kind() == reflect.Int64 {
 					var x = uint16(vv.Int())
 					hasAssigned = true
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
-			case core.Complex64Type:
+			case phoenixormcore.Complex64Type:
 				var x complex64
 				if len([]byte(vv.String())) > 0 {
 					err := DefaultJSONHandler.Unmarshal([]byte(vv.String()), &x)
@@ -810,7 +822,7 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 					fieldValue.Set(reflect.ValueOf(&x))
 				}
 				hasAssigned = true
-			case core.Complex128Type:
+			case phoenixormcore.Complex128Type:
 				var x complex128
 				if len([]byte(vv.String())) > 0 {
 					err := DefaultJSONHandler.Unmarshal([]byte(vv.String()), &x)
@@ -842,7 +854,17 @@ func (session *Session) slice2Bean(scanResults []interface{}, fields []string, b
 func (session *Session) saveLastSQL(sql string, args ...interface{}) {
 	session.lastSQL = sql
 	session.lastSQLArgs = args
-	session.engine.logSQL(sql, args...)
+	session.logSQL(sql, args...)
+}
+
+func (session *Session) logSQL(sqlStr string, sqlArgs ...interface{}) {
+	if session.showSQL && !session.engine.showExecTime {
+		if len(sqlArgs) > 0 {
+			session.engine.logger.Infof("[SQL] %v %#v", sqlStr, sqlArgs)
+		} else {
+			session.engine.logger.Infof("[SQL] %v", sqlStr)
+		}
+	}
 }
 
 // LastSQL returns last query information

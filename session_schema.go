@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // Ping test if database is ok
@@ -190,9 +190,9 @@ func (session *Session) isIndexExist2(tableName string, cols []string, unique bo
 	for _, index := range indexes {
 		if sliceEq(index.Cols, cols) {
 			if unique {
-				return index.Type == core.UniqueType, nil
+				return index.Type == phoenixormcore.UniqueType, nil
 			}
-			return index.Type == core.IndexType, nil
+			return index.Type == phoenixormcore.IndexType, nil
 		}
 	}
 	return false, nil
@@ -253,7 +253,7 @@ func (session *Session) Sync2(beans ...interface{}) error {
 		}
 		tbNameWithSchema := engine.tbNameWithSchema(tbName)
 
-		var oriTable *core.Table
+		var oriTable *phoenixormcore.Table
 		for _, tb := range tables {
 			if strings.EqualFold(engine.tbNameWithSchema(tb.Name), engine.tbNameWithSchema(tbName)) {
 				oriTable = tb
@@ -287,7 +287,7 @@ func (session *Session) Sync2(beans ...interface{}) error {
 
 		// check columns
 		for _, col := range table.Columns() {
-			var oriCol *core.Column
+			var oriCol *phoenixormcore.Column
 			for _, col2 := range oriTable.Columns() {
 				if strings.EqualFold(col.Name, col2.Name) {
 					oriCol = col2
@@ -309,11 +309,11 @@ func (session *Session) Sync2(beans ...interface{}) error {
 			expectedType := engine.dialect.SqlType(col)
 			curType := engine.dialect.SqlType(oriCol)
 			if expectedType != curType {
-				if expectedType == core.Text &&
-					strings.HasPrefix(curType, core.Varchar) {
+				if expectedType == phoenixormcore.Text &&
+					strings.HasPrefix(curType, phoenixormcore.Varchar) {
 					// currently only support mysql & postgres
-					if engine.dialect.DBType() == core.MYSQL ||
-						engine.dialect.DBType() == core.POSTGRES {
+					if engine.dialect.DBType() == phoenixormcore.MYSQL ||
+						engine.dialect.DBType() == phoenixormcore.POSTGRES {
 						engine.logger.Infof("Table %s column %s change type from %s to %s\n",
 							tbNameWithSchema, col.Name, curType, expectedType)
 						_, err = session.exec(engine.dialect.ModifyColumnSql(tbNameWithSchema, col))
@@ -321,8 +321,8 @@ func (session *Session) Sync2(beans ...interface{}) error {
 						engine.logger.Warnf("Table %s column %s db type is %s, struct type is %s\n",
 							tbNameWithSchema, col.Name, curType, expectedType)
 					}
-				} else if strings.HasPrefix(curType, core.Varchar) && strings.HasPrefix(expectedType, core.Varchar) {
-					if engine.dialect.DBType() == core.MYSQL {
+				} else if strings.HasPrefix(curType, phoenixormcore.Varchar) && strings.HasPrefix(expectedType, phoenixormcore.Varchar) {
+					if engine.dialect.DBType() == phoenixormcore.MYSQL {
 						if oriCol.Length < col.Length {
 							engine.logger.Infof("Table %s column %s change type from varchar(%d) to varchar(%d)\n",
 								tbNameWithSchema, col.Name, oriCol.Length, col.Length)
@@ -335,8 +335,8 @@ func (session *Session) Sync2(beans ...interface{}) error {
 							tbNameWithSchema, col.Name, curType, expectedType)
 					}
 				}
-			} else if expectedType == core.Varchar {
-				if engine.dialect.DBType() == core.MYSQL {
+			} else if expectedType == phoenixormcore.Varchar {
+				if engine.dialect.DBType() == phoenixormcore.MYSQL {
 					if oriCol.Length < col.Length {
 						engine.logger.Infof("Table %s column %s change type from varchar(%d) to varchar(%d)\n",
 							tbNameWithSchema, col.Name, oriCol.Length, col.Length)
@@ -346,7 +346,7 @@ func (session *Session) Sync2(beans ...interface{}) error {
 			}
 
 			if col.Default != oriCol.Default {
-				if (col.SQLType.Name == core.Bool || col.SQLType.Name == core.Boolean) &&
+				if (col.SQLType.Name == phoenixormcore.Bool || col.SQLType.Name == phoenixormcore.Boolean) &&
 					((strings.EqualFold(col.Default, "true") && oriCol.Default == "1") ||
 						(strings.EqualFold(col.Default, "false") && oriCol.Default == "0")) {
 				} else {
@@ -365,10 +365,10 @@ func (session *Session) Sync2(beans ...interface{}) error {
 		}
 
 		var foundIndexNames = make(map[string]bool)
-		var addedNames = make(map[string]*core.Index)
+		var addedNames = make(map[string]*phoenixormcore.Index)
 
 		for name, index := range table.Indexes {
-			var oriIndex *core.Index
+			var oriIndex *phoenixormcore.Index
 			for name2, index2 := range oriTable.Indexes {
 				if index.Equal(index2) {
 					oriIndex = index2
@@ -404,11 +404,11 @@ func (session *Session) Sync2(beans ...interface{}) error {
 		}
 
 		for name, index := range addedNames {
-			if index.Type == core.UniqueType {
+			if index.Type == phoenixormcore.UniqueType {
 				session.statement.RefTable = table
 				session.statement.tableName = tbNameWithSchema
 				err = session.addUnique(tbNameWithSchema, name)
-			} else if index.Type == core.IndexType {
+			} else if index.Type == phoenixormcore.IndexType {
 				session.statement.RefTable = table
 				session.statement.tableName = tbNameWithSchema
 				err = session.addIndex(tbNameWithSchema, name)

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestParsePostgres(t *testing.T) {
@@ -27,7 +27,7 @@ func TestParsePostgres(t *testing.T) {
 		{"dbname=db =disable", "db", false},
 	}
 
-	driver := core.QueryDriver("postgres")
+	driver := phoenixormcore.QueryDriver("postgres")
 
 	for _, test := range tests {
 		uri, err := driver.Parse("postgres", test.in)
@@ -59,7 +59,7 @@ func TestParsePgx(t *testing.T) {
 		{"dbname=db =disable", "db", false},
 	}
 
-	driver := core.QueryDriver("pgx")
+	driver := phoenixormcore.QueryDriver("pgx")
 
 	for _, test := range tests {
 		uri, err := driver.Parse("pgx", test.in)

@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"reflect"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // Rows rows wrapper a rows to
 type Rows struct {
 	session   *Session
-	rows      *core.Rows
+	rows      *phoenixormcore.Rows
 	beanType  reflect.Type
 	lastError error
 }

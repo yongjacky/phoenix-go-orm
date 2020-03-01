@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestDelete(t *testing.T) {
@@ -26,7 +26,7 @@ func TestDelete(t *testing.T) {
 	defer session.Close()
 
 	var err error
-	if testEngine.Dialect().DBType() == core.MSSQL {
+	if testEngine.Dialect().DBType() == phoenixormcore.MSSQL {
 		err = session.Begin()
 		assert.NoError(t, err)
 		_, err = session.Exec("SET IDENTITY_INSERT userinfo_delete ON")
@@ -38,7 +38,7 @@ func TestDelete(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, cnt)
 
-	if testEngine.Dialect().DBType() == core.MSSQL {
+	if testEngine.Dialect().DBType() == phoenixormcore.MSSQL {
 		err = session.Commit()
 		assert.NoError(t, err)
 	}

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
 func TestSetExpr(t *testing.T) {
@@ -45,7 +45,7 @@ func TestSetExpr(t *testing.T) {
 	assert.EqualValues(t, 1, cnt)
 
 	var not = "NOT"
-	if testEngine.Dialect().DBType() == core.MSSQL {
+	if testEngine.Dialect().DBType() == phoenixormcore.MSSQL {
 		not = "~"
 	}
 	cnt, err = testEngine.SetExpr("show", not+" `show`").ID(1).Update(new(UserExpr))

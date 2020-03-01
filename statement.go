@@ -11,17 +11,17 @@ import (
 	"strings"
 	"time"
 
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
 // Statement save all the sql info for executing SQL
 type Statement struct {
-	RefTable        *core.Table
+	RefTable        *phoenixormcore.Table
 	Engine          *Engine
 	Start           int
-	LimitN          int
-	idParam         *core.PK
+	LimitN          *int
+	idParam         *phoenixormcore.PK
 	OrderStr        string
 	JoinStr         string
 	joinArgs        []interface{}
@@ -65,7 +65,7 @@ type Statement struct {
 func (statement *Statement) Init() {
 	statement.RefTable = nil
 	statement.Start = 0
-	statement.LimitN = 0
+	statement.LimitN = nil
 	statement.OrderStr = ""
 	statement.UseCascade = true
 	statement.JoinStr = ""
@@ -247,7 +247,7 @@ func (statement *Statement) buildUpdates(bean interface{},
 		if !includeVersion && col.IsVersion {
 			continue
 		}
-		if col.IsCreated {
+		if col.IsCreated && !columnMap.contain(col.Name) {
 			continue
 		}
 		if !includeUpdated && col.IsUpdated {
@@ -266,7 +266,7 @@ func (statement *Statement) buildUpdates(bean interface{},
 			continue
 		}
 
-		if col.MapType == core.ONLYFROMDB {
+		if col.MapType == phoenixormcore.ONLYFROMDB {
 			continue
 		}
 
@@ -314,7 +314,7 @@ func (statement *Statement) buildUpdates(bean interface{},
 		var val interface{}
 
 		if fieldValue.CanAddr() {
-			if structConvert, ok := fieldValue.Addr().Interface().(core.Conversion); ok {
+			if structConvert, ok := fieldValue.Addr().Interface().(phoenixormcore.Conversion); ok {
 				data, err := structConvert.ToDB()
 				if err != nil {
 					engine.logger.Error(err)
@@ -325,7 +325,7 @@ func (statement *Statement) buildUpdates(bean interface{},
 			}
 		}
 
-		if structConvert, ok := fieldValue.Interface().(core.Conversion); ok {
+		if structConvert, ok := fieldValue.Interface().(phoenixormcore.Conversion); ok {
 			data, err := structConvert.ToDB()
 			if err != nil {
 				engine.logger.Error(err)
@@ -388,8 +388,8 @@ func (statement *Statement) buildUpdates(bean interface{},
 			t := int64(fieldValue.Uint())
 			val = reflect.ValueOf(&t).Interface()
 		case reflect.Struct:
-			if fieldType.ConvertibleTo(core.TimeType) {
-				t := fieldValue.Convert(core.TimeType).Interface().(time.Time)
+			if fieldType.ConvertibleTo(phoenixormcore.TimeType) {
+				t := fieldValue.Convert(phoenixormcore.TimeType).Interface().(time.Time)
 				if !requiredField && (t.IsZero() || !fieldValue.IsValid()) {
 					continue
 				}
@@ -496,7 +496,7 @@ func (statement *Statement) needTableName() bool {
 	return len(statement.JoinStr) > 0
 }
 
-func (statement *Statement) colName(col *core.Column, tableName string) string {
+func (statement *Statement) colName(col *phoenixormcore.Column, tableName string) string {
 	if statement.needTableName() {
 		var nm = tableName
 		if len(statement.TableAlias) > 0 {
@@ -523,12 +523,12 @@ func (statement *Statement) ID(id interface{}) *Statement {
 
 	switch idType {
 	case ptrPkType:
-		if pkPtr, ok := (id).(*core.PK); ok {
+		if pkPtr, ok := (id).(*phoenixormcore.PK); ok {
 			statement.idParam = pkPtr
 			return statement
 		}
 	case pkType:
-		if pk, ok := (id).(core.PK); ok {
+		if pk, ok := (id).(phoenixormcore.PK); ok {
 			statement.idParam = &pk
 			return statement
 		}
@@ -536,11 +536,11 @@ func (statement *Statement) ID(id interface{}) *Statement {
 
 	switch idType.Kind() {
 	case reflect.String:
-		statement.idParam = &core.PK{idValue.Convert(reflect.TypeOf("")).Interface()}
+		statement.idParam = &phoenixormcore.PK{idValue.Convert(reflect.TypeOf("")).Interface()}
 		return statement
 	}
 
-	statement.idParam = &core.PK{id}
+	statement.idParam = &phoenixormcore.PK{id}
 	return statement
 }
 
@@ -671,7 +671,7 @@ func (statement *Statement) Top(limit int) *Statement {
 
 // Limit generate LIMIT start, limit statement
 func (statement *Statement) Limit(limit int, start ...int) *Statement {
-	statement.LimitN = limit
+	statement.LimitN = &limit
 	if len(start) > 0 {
 		statement.Start = start[0]
 	}
@@ -807,7 +807,7 @@ func (statement *Statement) genColumnStr() string {
 			continue
 		}
 
-		if col.MapType == core.ONLYTODB {
+		if col.MapType == phoenixormcore.ONLYTODB {
 			continue
 		}
 
@@ -840,7 +840,7 @@ func (statement *Statement) genIndexSQL() []string {
 	var sqls []string
 	tbName := statement.TableName()
 	for _, index := range statement.RefTable.Indexes {
-		if index.Type == core.IndexType {
+		if index.Type == phoenixormcore.IndexType {
 			sql := statement.Engine.dialect.CreateIndexSql(tbName, index)
 			/*idxTBName := strings.Replace(tbName, ".", "_", -1)
 			idxTBName = strings.Replace(idxTBName, `"`, "", -1)
@@ -860,7 +860,7 @@ func (statement *Statement) genUniqueSQL() []string {
 	var sqls []string
 	tbName := statement.TableName()
 	for _, index := range statement.RefTable.Indexes {
-		if index.Type == core.UniqueType {
+		if index.Type == phoenixormcore.UniqueType {
 			sql := statement.Engine.dialect.CreateIndexSql(tbName, index)
 			sqls = append(sqls, sql)
 		}
@@ -875,9 +875,9 @@ func (statement *Statement) genDelIndexSQL() []string {
 	idxPrefixName = strings.Replace(idxPrefixName, `.`, "_", -1)
 	for idxName, index := range statement.RefTable.Indexes {
 		var rIdxName string
-		if index.Type == core.UniqueType {
+		if index.Type == phoenixormcore.UniqueType {
 			rIdxName = uniqueName(idxPrefixName, idxName)
-		} else if index.Type == core.IndexType {
+		} else if index.Type == phoenixormcore.IndexType {
 			rIdxName = indexName(idxPrefixName, idxName)
 		}
 		sql := fmt.Sprintf("DROP INDEX %v", statement.Engine.Quote(statement.Engine.TableName(rIdxName, true)))
@@ -889,18 +889,18 @@ func (statement *Statement) genDelIndexSQL() []string {
 	return sqls
 }
 
-func (statement *Statement) genAddColumnStr(col *core.Column) (string, []interface{}) {
+func (statement *Statement) genAddColumnStr(col *phoenixormcore.Column) (string, []interface{}) {
 	quote := statement.Engine.Quote
 	sql := fmt.Sprintf("ALTER TABLE %v ADD %v", quote(statement.TableName()),
 		col.String(statement.Engine.dialect))
-	if statement.Engine.dialect.DBType() == core.MYSQL && len(col.Comment) > 0 {
+	if statement.Engine.dialect.DBType() == phoenixormcore.MYSQL && len(col.Comment) > 0 {
 		sql += " COMMENT '" + col.Comment + "'"
 	}
 	sql += ";"
 	return sql, []interface{}{}
 }
 
-func (statement *Statement) buildConds(table *core.Table, bean interface{}, includeVersion bool, includeUpdated bool, includeNil bool, includeAutoIncr bool, addedTableName bool) (builder.Cond, error) {
+func (statement *Statement) buildConds(table *phoenixormcore.Table, bean interface{}, includeVersion bool, includeUpdated bool, includeNil bool, includeAutoIncr bool, addedTableName bool) (builder.Cond, error) {
 	return statement.Engine.buildConds(table, bean, includeVersion, includeUpdated, includeNil, includeAutoIncr, statement.allUseBool, statement.useAllCols,
 		statement.unscoped, statement.mustColumnMap, statement.TableName(), statement.TableAlias, addedTableName)
 }
@@ -1054,14 +1054,14 @@ func (statement *Statement) genSelectSQL(columnStr, condSQL string, needLimit, n
 		whereStr = " WHERE " + condSQL
 	}
 
-	if dialect.DBType() == core.MSSQL && strings.Contains(statement.TableName(), "..") {
+	if dialect.DBType() == phoenixormcore.MSSQL && strings.Contains(statement.TableName(), "..") {
 		fromStr += statement.TableName()
 	} else {
 		fromStr += quote(statement.TableName())
 	}
 
 	if statement.TableAlias != "" {
-		if dialect.DBType() == core.ORACLE {
+		if dialect.DBType() == phoenixormcore.ORACLE {
 			fromStr += " " + quote(statement.TableAlias)
 		} else {
 			fromStr += " AS " + quote(statement.TableAlias)
@@ -1071,9 +1071,11 @@ func (statement *Statement) genSelectSQL(columnStr, condSQL string, needLimit, n
 		fromStr = fmt.Sprintf("%v %v", fromStr, statement.JoinStr)
 	}
 
-	if dialect.DBType() == core.MSSQL {
-		if statement.LimitN > 0 {
-			top = fmt.Sprintf("TOP %d ", statement.LimitN)
+	pLimitN := statement.LimitN
+	if dialect.DBType() == phoenixormcore.MSSQL {
+		if pLimitN != nil {
+			LimitNValue := *pLimitN
+			top = fmt.Sprintf("TOP %d ", LimitNValue)
 		}
 		if statement.Start > 0 {
 			var column string
@@ -1132,14 +1134,18 @@ func (statement *Statement) genSelectSQL(columnStr, condSQL string, needLimit, n
 		fmt.Fprint(&buf, " ORDER BY ", statement.OrderStr)
 	}
 	if needLimit {
-		if dialect.DBType() != core.MSSQL && dialect.DBType() != core.ORACLE {
+		if dialect.DBType() != phoenixormcore.MSSQL && dialect.DBType() != phoenixormcore.ORACLE {
 			if statement.Start > 0 {
-				fmt.Fprintf(&buf, " LIMIT %v OFFSET %v", statement.LimitN, statement.Start)
-			} else if statement.LimitN > 0 {
-				fmt.Fprint(&buf, " LIMIT ", statement.LimitN)
+				if pLimitN != nil {
+					fmt.Fprintf(&buf, " LIMIT %v OFFSET %v", *pLimitN, statement.Start)
+				} else {
+					fmt.Fprintf(&buf, "LIMIT 0 OFFSET %v", statement.Start)
+				}
+			} else if pLimitN != nil {
+				fmt.Fprint(&buf, " LIMIT ", *pLimitN)
 			}
-		} else if dialect.DBType() == core.ORACLE {
-			if statement.Start != 0 || statement.LimitN != 0 {
+		} else if dialect.DBType() == phoenixormcore.ORACLE {
+			if statement.Start != 0 || pLimitN != nil {
 				oldString := buf.String()
 				buf.Reset()
 				rawColStr := columnStr
@@ -1147,7 +1153,7 @@ func (statement *Statement) genSelectSQL(columnStr, condSQL string, needLimit, n
 					rawColStr = "at.*"
 				}
 				fmt.Fprintf(&buf, "SELECT %v FROM (SELECT %v,ROWNUM RN FROM (%v) at WHERE ROWNUM <= %d) aat WHERE RN > %d",
-					columnStr, rawColStr, oldString, statement.Start+statement.LimitN, statement.Start)
+					columnStr, rawColStr, oldString, statement.Start+*pLimitN, statement.Start)
 			}
 		}
 	}
@@ -1177,7 +1183,7 @@ func (statement *Statement) processIDParam() error {
 	return nil
 }
 
-func (statement *Statement) joinColumns(cols []*core.Column, includeTableName bool) string {
+func (statement *Statement) joinColumns(cols []*phoenixormcore.Column, includeTableName bool) string {
 	var colnames = make([]string, len(cols))
 	for i, col := range cols {
 		if includeTableName {
@@ -1204,8 +1210,9 @@ func (statement *Statement) convertIDSQL(sqlStr string) string {
 		}
 
 		var top string
-		if statement.LimitN > 0 && statement.Engine.dialect.DBType() == core.MSSQL {
-			top = fmt.Sprintf("TOP %d ", statement.LimitN)
+		pLimitN := statement.LimitN
+		if pLimitN != nil && statement.Engine.dialect.DBType() == phoenixormcore.MSSQL {
+			top = fmt.Sprintf("TOP %d ", *pLimitN)
 		}
 
 		newsql := fmt.Sprintf("SELECT %s%s FROM %v", top, colstrs, sqls[1])
@@ -1233,9 +1240,9 @@ func (statement *Statement) convertUpdateSQL(sqlStr string) (string, string) {
 
 	// TODO: for postgres only, if any other database?
 	var paraStr string
-	if statement.Engine.dialect.DBType() == core.POSTGRES {
+	if statement.Engine.dialect.DBType() == phoenixormcore.POSTGRES {
 		paraStr = "$"
-	} else if statement.Engine.dialect.DBType() == core.MSSQL {
+	} else if statement.Engine.dialect.DBType() == phoenixormcore.MSSQL {
 		paraStr = ":"
 	}
 

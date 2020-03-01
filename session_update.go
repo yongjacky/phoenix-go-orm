@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	"xorm.io/builder"
-	"xorm.io/core"
 )
 
-func (session *Session) cacheUpdate(table *core.Table, tableName, sqlStr string, args ...interface{}) error {
+func (session *Session) cacheUpdate(table *phoenixormcore.Table, tableName, sqlStr string, args ...interface{}) error {
 	if table == nil ||
 		session.tx != nil {
 		return ErrCacheFailed
@@ -42,7 +42,7 @@ func (session *Session) cacheUpdate(table *core.Table, tableName, sqlStr string,
 
 	cacher := session.engine.getCacher(tableName)
 	session.engine.logger.Debug("[cacheUpdate] get cache sql", newsql, args[nStart:])
-	ids, err := core.GetCacheSql(cacher, tableName, newsql, args[nStart:])
+	ids, err := phoenixormcore.GetCacheSql(cacher, tableName, newsql, args[nStart:])
 	if err != nil {
 		rows, err := session.NoCache().queryRows(newsql, args[nStart:]...)
 		if err != nil {
@@ -50,14 +50,14 @@ func (session *Session) cacheUpdate(table *core.Table, tableName, sqlStr string,
 		}
 		defer rows.Close()
 
-		ids = make([]core.PK, 0)
+		ids = make([]phoenixormcore.PK, 0)
 		for rows.Next() {
 			var res = make([]string, len(table.PrimaryKeys))
 			err = rows.ScanSlice(&res)
 			if err != nil {
 				return err
 			}
-			var pk core.PK = make([]interface{}, len(table.PrimaryKeys))
+			var pk phoenixormcore.PK = make([]interface{}, len(table.PrimaryKeys))
 			for i, col := range table.PKColumns() {
 				if col.SQLType.IsNumeric() {
 					n, err := strconv.ParseInt(res[i], 10, 64)
@@ -239,14 +239,20 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 	for i, colName := range exprColumns.colNames {
 		switch tp := exprColumns.args[i].(type) {
 		case string:
-			colNames = append(colNames, session.engine.Quote(colName)+" = "+tp)
+			if len(tp) == 0 {
+				tp = "''"
+			}
+			colNames = append(colNames, session.engine.Quote(colName)+"="+tp)
 		case *builder.Builder:
 			subQuery, subArgs, err := builder.ToSQL(tp)
 			if err != nil {
 				return 0, err
 			}
-			colNames = append(colNames, session.engine.Quote(colName)+" = ("+subQuery+")")
+			colNames = append(colNames, session.engine.Quote(colName)+"=("+subQuery+")")
 			args = append(args, subArgs...)
+		default:
+			colNames = append(colNames, session.engine.Quote(colName)+"=?")
+			args = append(args, exprColumns.args[i])
 		}
 	}
 
@@ -294,21 +300,25 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 
 	st := &session.statement
 
-	var sqlStr string
-	var condArgs []interface{}
-	var condSQL string
-	cond := session.statement.cond.And(autoCond)
+	var (
+		sqlStr   string
+		condArgs []interface{}
+		condSQL  string
+		cond     = session.statement.cond.And(autoCond)
 
-	var doIncVer = (table != nil && table.Version != "" && session.statement.checkVersion)
-	var verValue *reflect.Value
+		doIncVer = isStruct && (table != nil && table.Version != "" && session.statement.checkVersion)
+		verValue *reflect.Value
+	)
 	if doIncVer {
 		verValue, err = table.VersionColumn().ValueOf(bean)
 		if err != nil {
 			return 0, err
 		}
 
-		cond = cond.And(builder.Eq{session.engine.Quote(table.Version): verValue.Interface()})
-		colNames = append(colNames, session.engine.Quote(table.Version)+" = "+session.engine.Quote(table.Version)+" + 1")
+		if verValue != nil {
+			cond = cond.And(builder.Eq{session.engine.Quote(table.Version): verValue.Interface()})
+			colNames = append(colNames, session.engine.Quote(table.Version)+" = "+session.engine.Quote(table.Version)+" + 1")
+		}
 	}
 
 	condSQL, condArgs, err = builder.ToSQL(cond)
@@ -327,11 +337,12 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 	var tableName = session.statement.TableName()
 	// TODO: Oracle support needed
 	var top string
-	if st.LimitN > 0 {
-		if st.Engine.dialect.DBType() == core.MYSQL {
-			condSQL = condSQL + fmt.Sprintf(" LIMIT %d", st.LimitN)
-		} else if st.Engine.dialect.DBType() == core.SQLITE {
-			tempCondSQL := condSQL + fmt.Sprintf(" LIMIT %d", st.LimitN)
+	if st.LimitN != nil {
+		limitValue := *st.LimitN
+		if st.Engine.dialect.DBType() == phoenixormcore.MYSQL {
+			condSQL = condSQL + fmt.Sprintf(" LIMIT %d", limitValue)
+		} else if st.Engine.dialect.DBType() == phoenixormcore.SQLITE {
+			tempCondSQL := condSQL + fmt.Sprintf(" LIMIT %d", limitValue)
 			cond = cond.And(builder.Expr(fmt.Sprintf("rowid IN (SELECT rowid FROM %v %v)",
 				session.engine.Quote(tableName), tempCondSQL), condArgs...))
 			condSQL, condArgs, err = builder.ToSQL(cond)
@@ -341,8 +352,8 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 			if len(condSQL) > 0 {
 				condSQL = "WHERE " + condSQL
 			}
-		} else if st.Engine.dialect.DBType() == core.POSTGRES {
-			tempCondSQL := condSQL + fmt.Sprintf(" LIMIT %d", st.LimitN)
+		} else if st.Engine.dialect.DBType() == phoenixormcore.POSTGRES {
+			tempCondSQL := condSQL + fmt.Sprintf(" LIMIT %d", limitValue)
 			cond = cond.And(builder.Expr(fmt.Sprintf("CTID IN (SELECT CTID FROM %v %v)",
 				session.engine.Quote(tableName), tempCondSQL), condArgs...))
 			condSQL, condArgs, err = builder.ToSQL(cond)
@@ -353,11 +364,11 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 			if len(condSQL) > 0 {
 				condSQL = "WHERE " + condSQL
 			}
-		} else if st.Engine.dialect.DBType() == core.MSSQL {
-			if st.OrderStr != "" && st.Engine.dialect.DBType() == core.MSSQL &&
+		} else if st.Engine.dialect.DBType() == phoenixormcore.MSSQL {
+			if st.OrderStr != "" && st.Engine.dialect.DBType() == phoenixormcore.MSSQL &&
 				table != nil && len(table.PrimaryKeys) == 1 {
 				cond = builder.Expr(fmt.Sprintf("%s IN (SELECT TOP (%d) %s FROM %v%v)",
-					table.PrimaryKeys[0], st.LimitN, table.PrimaryKeys[0],
+					table.PrimaryKeys[0], limitValue, table.PrimaryKeys[0],
 					session.engine.Quote(tableName), condSQL), condArgs...)
 
 				condSQL, condArgs, err = builder.ToSQL(cond)
@@ -368,7 +379,7 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 					condSQL = "WHERE " + condSQL
 				}
 			} else {
-				top = fmt.Sprintf("TOP (%d) ", st.LimitN)
+				top = fmt.Sprintf("TOP (%d) ", limitValue)
 			}
 		}
 	}
@@ -377,10 +388,23 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 		return 0, errors.New("No content found to be updated")
 	}
 
-	sqlStr = fmt.Sprintf("UPDATE %v%v SET %v %v",
+	var tableAlias = session.engine.Quote(tableName)
+	var fromSQL string
+	if session.statement.TableAlias != "" {
+		switch session.engine.dialect.DBType() {
+		case phoenixormcore.MSSQL:
+			fromSQL = fmt.Sprintf("FROM %s %s ", tableAlias, session.statement.TableAlias)
+			tableAlias = session.statement.TableAlias
+		default:
+			tableAlias = fmt.Sprintf("%s AS %s", tableAlias, session.statement.TableAlias)
+		}
+	}
+
+	sqlStr = fmt.Sprintf("UPDATE %v%v SET %v %v%v",
 		top,
-		session.engine.Quote(tableName),
+		tableAlias,
 		strings.Join(colNames, ", "),
+		fromSQL,
 		condSQL)
 
 	res, err := session.exec(sqlStr, append(args, condArgs...)...)
@@ -443,7 +467,7 @@ func (session *Session) genUpdateColumns(bean interface{}) ([]string, []interfac
 				continue
 			}
 		}
-		if col.MapType == core.ONLYFROMDB {
+		if col.MapType == phoenixormcore.ONLYFROMDB {
 			continue
 		}
 
@@ -493,7 +517,7 @@ func (session *Session) genUpdateColumns(bean interface{}) ([]string, []interfac
 
 		// !evalphobia! set fieldValue as nil when column is nullable and zero-value
 		if _, ok := getFlagForColumn(session.statement.nullableMap, col); ok {
-			if col.Nullable && isZero(fieldValue.Interface()) {
+			if col.Nullable && isZeroValue(fieldValue) {
 				var nilValue *int
 				fieldValue = reflect.ValueOf(nilValue)
 			}

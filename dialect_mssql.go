@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 var (
@@ -205,64 +205,64 @@ var (
 )
 
 type mssql struct {
-	core.Base
+	phoenixormcore.Base
 }
 
-func (db *mssql) Init(d *core.DB, uri *core.Uri, drivername, dataSourceName string) error {
+func (db *mssql) Init(d *phoenixormcore.DB, uri *phoenixormcore.Uri, drivername, dataSourceName string) error {
 	return db.Base.Init(d, db, uri, drivername, dataSourceName)
 }
 
-func (db *mssql) SqlType(c *core.Column) string {
+func (db *mssql) SqlType(c *phoenixormcore.Column) string {
 	var res string
 	switch t := c.SQLType.Name; t {
-	case core.Bool:
-		res = core.Bit
+	case phoenixormcore.Bool:
+		res = phoenixormcore.Bit
 		if strings.EqualFold(c.Default, "true") {
 			c.Default = "1"
 		} else if strings.EqualFold(c.Default, "false") {
 			c.Default = "0"
 		}
-	case core.Serial:
+	case phoenixormcore.Serial:
 		c.IsAutoIncrement = true
 		c.IsPrimaryKey = true
 		c.Nullable = false
-		res = core.Int
-	case core.BigSerial:
+		res = phoenixormcore.Int
+	case phoenixormcore.BigSerial:
 		c.IsAutoIncrement = true
 		c.IsPrimaryKey = true
 		c.Nullable = false
-		res = core.BigInt
-	case core.Bytea, core.Blob, core.Binary, core.TinyBlob, core.MediumBlob, core.LongBlob:
-		res = core.VarBinary
+		res = phoenixormcore.BigInt
+	case phoenixormcore.Bytea, phoenixormcore.Blob, phoenixormcore.Binary, phoenixormcore.TinyBlob, phoenixormcore.MediumBlob, phoenixormcore.LongBlob:
+		res = phoenixormcore.VarBinary
 		if c.Length == 0 {
 			c.Length = 50
 		}
-	case core.TimeStamp:
-		res = core.DateTime
-	case core.TimeStampz:
+	case phoenixormcore.TimeStamp:
+		res = phoenixormcore.DateTime
+	case phoenixormcore.TimeStampz:
 		res = "DATETIMEOFFSET"
 		c.Length = 7
-	case core.MediumInt:
-		res = core.Int
-	case core.Text, core.MediumText, core.TinyText, core.LongText, core.Json:
-		res = core.Varchar + "(MAX)"
-	case core.Double:
-		res = core.Real
-	case core.Uuid:
-		res = core.Varchar
+	case phoenixormcore.MediumInt:
+		res = phoenixormcore.Int
+	case phoenixormcore.Text, phoenixormcore.MediumText, phoenixormcore.TinyText, phoenixormcore.LongText, phoenixormcore.Json:
+		res = phoenixormcore.Varchar + "(MAX)"
+	case phoenixormcore.Double:
+		res = phoenixormcore.Real
+	case phoenixormcore.Uuid:
+		res = phoenixormcore.Varchar
 		c.Length = 40
-	case core.TinyInt:
-		res = core.TinyInt
+	case phoenixormcore.TinyInt:
+		res = phoenixormcore.TinyInt
 		c.Length = 0
-	case core.BigInt:
-		res = core.BigInt
+	case phoenixormcore.BigInt:
+		res = phoenixormcore.BigInt
 		c.Length = 0
 	default:
 		res = t
 	}
 
-	if res == core.Int {
-		return core.Int
+	if res == phoenixormcore.Int {
+		return phoenixormcore.Int
 	}
 
 	hasLen1 := (c.Length > 0)
@@ -335,7 +335,7 @@ func (db *mssql) TableCheckSql(tableName string) (string, []interface{}) {
 	return sql, args
 }
 
-func (db *mssql) GetColumns(tableName string) ([]string, map[string]*core.Column, error) {
+func (db *mssql) GetColumns(tableName string) ([]string, map[string]*phoenixormcore.Column, error) {
 	args := []interface{}{}
 	s := `select a.name as name, b.name as ctype,a.max_length,a.precision,a.scale,a.is_nullable as nullable,
 		  "default_is_null" = (CASE WHEN c.text is null THEN 1 ELSE 0 END),
@@ -357,7 +357,7 @@ func (db *mssql) GetColumns(tableName string) ([]string, map[string]*core.Column
 	}
 	defer rows.Close()
 
-	cols := make(map[string]*core.Column)
+	cols := make(map[string]*phoenixormcore.Column)
 	colSeq := make([]string, 0)
 	for rows.Next() {
 		var name, ctype, vdefault string
@@ -368,7 +368,7 @@ func (db *mssql) GetColumns(tableName string) ([]string, map[string]*core.Column
 			return nil, nil, err
 		}
 
-		col := new(core.Column)
+		col := new(phoenixormcore.Column)
 		col.Indexes = make(map[string]int)
 		col.Name = strings.Trim(name, "` ")
 		col.Nullable = nullable
@@ -387,14 +387,14 @@ func (db *mssql) GetColumns(tableName string) ([]string, map[string]*core.Column
 		}
 		switch ct {
 		case "DATETIMEOFFSET":
-			col.SQLType = core.SQLType{Name: core.TimeStampz, DefaultLength: 0, DefaultLength2: 0}
+			col.SQLType = phoenixormcore.SQLType{Name: phoenixormcore.TimeStampz, DefaultLength: 0, DefaultLength2: 0}
 		case "NVARCHAR":
-			col.SQLType = core.SQLType{Name: core.NVarchar, DefaultLength: 0, DefaultLength2: 0}
+			col.SQLType = phoenixormcore.SQLType{Name: phoenixormcore.NVarchar, DefaultLength: 0, DefaultLength2: 0}
 		case "IMAGE":
-			col.SQLType = core.SQLType{Name: core.VarBinary, DefaultLength: 0, DefaultLength2: 0}
+			col.SQLType = phoenixormcore.SQLType{Name: phoenixormcore.VarBinary, DefaultLength: 0, DefaultLength2: 0}
 		default:
-			if _, ok := core.SqlTypes[ct]; ok {
-				col.SQLType = core.SQLType{Name: ct, DefaultLength: 0, DefaultLength2: 0}
+			if _, ok := phoenixormcore.SqlTypes[ct]; ok {
+				col.SQLType = phoenixormcore.SQLType{Name: ct, DefaultLength: 0, DefaultLength2: 0}
 			} else {
 				return nil, nil, fmt.Errorf("Unknown colType %v for %v - %v", ct, tableName, col.Name)
 			}
@@ -406,7 +406,7 @@ func (db *mssql) GetColumns(tableName string) ([]string, map[string]*core.Column
 	return colSeq, cols, nil
 }
 
-func (db *mssql) GetTables() ([]*core.Table, error) {
+func (db *mssql) GetTables() ([]*phoenixormcore.Table, error) {
 	args := []interface{}{}
 	s := `select name from sysobjects where xtype ='U'`
 	db.LogSQL(s, args)
@@ -417,9 +417,9 @@ func (db *mssql) GetTables() ([]*core.Table, error) {
 	}
 	defer rows.Close()
 
-	tables := make([]*core.Table, 0)
+	tables := make([]*phoenixormcore.Table, 0)
 	for rows.Next() {
-		table := core.NewEmptyTable()
+		table := phoenixormcore.NewEmptyTable()
 		var name string
 		err = rows.Scan(&name)
 		if err != nil {
@@ -431,7 +431,7 @@ func (db *mssql) GetTables() ([]*core.Table, error) {
 	return tables, nil
 }
 
-func (db *mssql) GetIndexes(tableName string) (map[string]*core.Index, error) {
+func (db *mssql) GetIndexes(tableName string) (map[string]*phoenixormcore.Index, error) {
 	args := []interface{}{tableName}
 	s := `SELECT
 IXS.NAME                    AS  [INDEX_NAME],
@@ -452,7 +452,7 @@ WHERE IXS.TYPE_DESC='NONCLUSTERED' and OBJECT_NAME(IXS.OBJECT_ID) =?
 	}
 	defer rows.Close()
 
-	indexes := make(map[string]*core.Index, 0)
+	indexes := make(map[string]*phoenixormcore.Index, 0)
 	for rows.Next() {
 		var indexType int
 		var indexName, colName, isUnique string
@@ -468,9 +468,9 @@ WHERE IXS.TYPE_DESC='NONCLUSTERED' and OBJECT_NAME(IXS.OBJECT_ID) =?
 		}
 
 		if i {
-			indexType = core.UniqueType
+			indexType = phoenixormcore.UniqueType
 		} else {
-			indexType = core.IndexType
+			indexType = phoenixormcore.IndexType
 		}
 
 		colName = strings.Trim(colName, "` ")
@@ -480,10 +480,10 @@ WHERE IXS.TYPE_DESC='NONCLUSTERED' and OBJECT_NAME(IXS.OBJECT_ID) =?
 			isRegular = true
 		}
 
-		var index *core.Index
+		var index *phoenixormcore.Index
 		var ok bool
 		if index, ok = indexes[indexName]; !ok {
-			index = new(core.Index)
+			index = new(phoenixormcore.Index)
 			index.Type = indexType
 			index.Name = indexName
 			index.IsRegular = isRegular
@@ -494,7 +494,7 @@ WHERE IXS.TYPE_DESC='NONCLUSTERED' and OBJECT_NAME(IXS.OBJECT_ID) =?
 	return indexes, nil
 }
 
-func (db *mssql) CreateTableSql(table *core.Table, tableName, storeEngine, charset string) string {
+func (db *mssql) CreateTableSql(table *phoenixormcore.Table, tableName, storeEngine, charset string) string {
 	var sql string
 	if tableName == "" {
 		tableName = table.Name
@@ -532,14 +532,14 @@ func (db *mssql) ForUpdateSql(query string) string {
 	return query
 }
 
-func (db *mssql) Filters() []core.Filter {
-	return []core.Filter{&core.IdFilter{}, &core.QuoteFilter{}}
+func (db *mssql) Filters() []phoenixormcore.Filter {
+	return []phoenixormcore.Filter{&phoenixormcore.IdFilter{}, &phoenixormcore.QuoteFilter{}}
 }
 
 type odbcDriver struct {
 }
 
-func (p *odbcDriver) Parse(driverName, dataSourceName string) (*core.Uri, error) {
+func (p *odbcDriver) Parse(driverName, dataSourceName string) (*phoenixormcore.Uri, error) {
 	var dbName string
 
 	if strings.HasPrefix(dataSourceName, "sqlserver://") {
@@ -563,5 +563,5 @@ func (p *odbcDriver) Parse(driverName, dataSourceName string) (*core.Uri, error)
 	if dbName == "" {
 		return nil, errors.New("no db name provided")
 	}
-	return &core.Uri{DbName: dbName, DbType: core.MSSQL}, nil
+	return &phoenixormcore.Uri{DbName: dbName, DbType: phoenixormcore.MSSQL}, nil
 }

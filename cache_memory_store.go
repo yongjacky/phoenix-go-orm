@@ -7,10 +7,10 @@ package xorm
 import (
 	"sync"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
-var _ core.CacheStore = NewMemoryStore()
+var _ phoenixormcore.CacheStore = NewMemoryStore()
 
 // MemoryStore represents in-memory store
 type MemoryStore struct {

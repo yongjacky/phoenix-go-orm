@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"testing"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestArrayField(t *testing.T) {
@@ -137,8 +137,8 @@ type ConvStruct struct {
 	Conv  ConvString
 	Conv2 *ConvString
 	Cfg1  ConvConfig
-	Cfg2  *ConvConfig     `xorm:"TEXT"`
-	Cfg3  core.Conversion `xorm:"BLOB"`
+	Cfg2  *ConvConfig               `xorm:"TEXT"`
+	Cfg3  phoenixormcore.Conversion `xorm:"BLOB"`
 	Slice SliceType
 }
 
@@ -267,11 +267,11 @@ type Status struct {
 }
 
 var (
-	_        core.Conversion   = &Status{}
-	Registed Status            = Status{"Registed", "white"}
-	Approved Status            = Status{"Approved", "green"}
-	Removed  Status            = Status{"Removed", "red"}
-	Statuses map[string]Status = map[string]Status{
+	_        phoenixormcore.Conversion = &Status{}
+	Registed Status                    = Status{"Registed", "white"}
+	Approved Status                    = Status{"Approved", "green"}
+	Removed  Status                    = Status{"Removed", "red"}
+	Statuses map[string]Status         = map[string]Status{
 		Registed.Name: Registed,
 		Approved.Name: Approved,
 		Removed.Name:  Removed,
@@ -311,7 +311,7 @@ func TestCustomType2(t *testing.T) {
 	session := testEngine.NewSession()
 	defer session.Close()
 
-	if testEngine.Dialect().DBType() == core.MSSQL {
+	if testEngine.Dialect().DBType() == phoenixormcore.MSSQL {
 		err = session.Begin()
 		assert.NoError(t, err)
 		_, err = session.Exec("set IDENTITY_INSERT " + tableName + " on")
@@ -322,7 +322,7 @@ func TestCustomType2(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, cnt)
 
-	if testEngine.Dialect().DBType() == core.MSSQL {
+	if testEngine.Dialect().DBType() == phoenixormcore.MSSQL {
 		err = session.Commit()
 		assert.NoError(t, err)
 	}

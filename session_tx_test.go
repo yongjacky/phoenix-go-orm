@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestTransaction(t *testing.T) {
@@ -89,7 +89,7 @@ func TestCombineTransactionSameMapper(t *testing.T) {
 
 	oldMapper := testEngine.GetColumnMapper()
 	testEngine.UnMapType(rValue(new(Userinfo)).Type())
-	testEngine.SetMapper(core.SameMapper{})
+	testEngine.SetMapper(phoenixormcore.SameMapper{})
 	defer func() {
 		testEngine.UnMapType(rValue(new(Userinfo)).Type())
 		testEngine.SetMapper(oldMapper)
