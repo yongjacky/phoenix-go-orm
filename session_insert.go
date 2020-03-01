@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 // Insert insert one or more beans
@@ -357,7 +357,7 @@ func (session *Session) innerInsert(bean interface{}) (int64, error) {
 		output = fmt.Sprintf(" OUTPUT Inserted.%s", table.AutoIncrement)
 	}
 
-	var buf = builder.NewWriter()
+	var buf = phoenixormbuilder.NewWriter()
 	if _, err := buf.WriteString(fmt.Sprintf("INSERT INTO %s", session.engine.Quote(tableName))); err != nil {
 		return 0, err
 	}
@@ -767,7 +767,7 @@ func (session *Session) insertMap(columns []string, args []interface{}) (int64, 
 	}
 
 	exprs := session.statement.exprColumns
-	w := builder.NewWriter()
+	w := phoenixormbuilder.NewWriter()
 	// if insert where
 	if session.statement.cond.IsValid() {
 		if _, err := w.WriteString(fmt.Sprintf("INSERT INTO %s (", session.engine.Quote(tableName))); err != nil {

@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 // Engine is the major struct of xorm, it means a database manager.
@@ -91,11 +91,11 @@ func (engine *Engine) BufferSize(size int) *Session {
 }
 
 // CondDeleted returns the conditions whether a record is soft deleted.
-func (engine *Engine) CondDeleted(colName string) builder.Cond {
+func (engine *Engine) CondDeleted(colName string) phoenixormbuilder.Cond {
 	if engine.dialect.DBType() == phoenixormcore.MSSQL {
-		return builder.IsNull{colName}
+		return phoenixormbuilder.IsNull{colName}
 	}
-	return builder.IsNull{colName}.Or(builder.Eq{colName: zeroTime1})
+	return phoenixormbuilder.IsNull{colName}.Or(phoenixormbuilder.Eq{colName: zeroTime1})
 }
 
 // ShowSQL show SQL statement or not on logger if log level is great than INFO

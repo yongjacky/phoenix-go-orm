@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"testing"
 
-	"xorm.io/builder"
 	"github.com/stretchr/testify/assert"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 )
 
 func isFloatEq(i, j float64, precision int) bool {
@@ -168,7 +168,7 @@ func TestCount(t *testing.T) {
 	assert.NoError(t, testEngine.Sync2(new(UserinfoCount)))
 
 	colName := testEngine.GetColumnMapper().Obj2Table("Departname")
-	var cond builder.Cond = builder.Eq{
+	var cond phoenixormbuilder.Cond = phoenixormbuilder.Eq{
 		"`" + colName + "`": "dev",
 	}
 

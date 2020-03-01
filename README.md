@@ -28,7 +28,7 @@ Xorm is a simple and powerful ORM for Go.
 
 * Optimistic Locking support
 
-* SQL Builder support via [xorm.io/builder](https://xorm.io/builder)
+* SQL Builder support via [github.com/yongjacky/phoenix-go-orm-builder](https://github.com/yongjacky/phoenix-go-orm-builder)
 
 * Automatical Read/Write seperatelly
 

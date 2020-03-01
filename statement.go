@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 // Statement save all the sql info for executing SQL
@@ -55,7 +55,7 @@ type Statement struct {
 	incrColumns     exprParams
 	decrColumns     exprParams
 	exprColumns     exprParams
-	cond            builder.Cond
+	cond            phoenixormbuilder.Cond
 	bufferSize      int
 	context         ContextCache
 	lastError       error
@@ -97,7 +97,7 @@ func (statement *Statement) Init() {
 	statement.incrColumns = exprParams{}
 	statement.decrColumns = exprParams{}
 	statement.exprColumns = exprParams{}
-	statement.cond = builder.NewCond()
+	statement.cond = phoenixormbuilder.NewCond()
 	statement.bufferSize = 0
 	statement.context = nil
 	statement.lastError = nil
@@ -121,9 +121,9 @@ func (statement *Statement) Alias(alias string) *Statement {
 // SQL adds raw sql statement
 func (statement *Statement) SQL(query interface{}, args ...interface{}) *Statement {
 	switch query.(type) {
-	case (*builder.Builder):
+	case (*phoenixormbuilder.Builder):
 		var err error
-		statement.RawSQL, statement.RawParams, err = query.(*builder.Builder).ToSQL()
+		statement.RawSQL, statement.RawParams, err = query.(*phoenixormbuilder.Builder).ToSQL()
 		if err != nil {
 			statement.lastError = err
 		}
@@ -146,7 +146,7 @@ func (statement *Statement) Where(query interface{}, args ...interface{}) *State
 func (statement *Statement) And(query interface{}, args ...interface{}) *Statement {
 	switch query.(type) {
 	case string:
-		cond := builder.Expr(query.(string), args...)
+		cond := phoenixormbuilder.Expr(query.(string), args...)
 		statement.cond = statement.cond.And(cond)
 	case map[string]interface{}:
 		queryMap := query.(map[string]interface{})
@@ -154,12 +154,12 @@ func (statement *Statement) And(query interface{}, args ...interface{}) *Stateme
 		for k, v := range queryMap {
 			newMap[statement.Engine.Quote(k)] = v
 		}
-		statement.cond = statement.cond.And(builder.Eq(newMap))
-	case builder.Cond:
-		cond := query.(builder.Cond)
+		statement.cond = statement.cond.And(phoenixormbuilder.Eq(newMap))
+	case phoenixormbuilder.Cond:
+		cond := query.(phoenixormbuilder.Cond)
 		statement.cond = statement.cond.And(cond)
 		for _, v := range args {
-			if vv, ok := v.(builder.Cond); ok {
+			if vv, ok := v.(phoenixormbuilder.Cond); ok {
 				statement.cond = statement.cond.And(vv)
 			}
 		}
@@ -174,16 +174,16 @@ func (statement *Statement) And(query interface{}, args ...interface{}) *Stateme
 func (statement *Statement) Or(query interface{}, args ...interface{}) *Statement {
 	switch query.(type) {
 	case string:
-		cond := builder.Expr(query.(string), args...)
+		cond := phoenixormbuilder.Expr(query.(string), args...)
 		statement.cond = statement.cond.Or(cond)
 	case map[string]interface{}:
-		cond := builder.Eq(query.(map[string]interface{}))
+		cond := phoenixormbuilder.Eq(query.(map[string]interface{}))
 		statement.cond = statement.cond.Or(cond)
-	case builder.Cond:
-		cond := query.(builder.Cond)
+	case phoenixormbuilder.Cond:
+		cond := query.(phoenixormbuilder.Cond)
 		statement.cond = statement.cond.Or(cond)
 		for _, v := range args {
-			if vv, ok := v.(builder.Cond); ok {
+			if vv, ok := v.(phoenixormbuilder.Cond); ok {
 				statement.cond = statement.cond.Or(vv)
 			}
 		}
@@ -195,14 +195,14 @@ func (statement *Statement) Or(query interface{}, args ...interface{}) *Statemen
 
 // In generate "Where column IN (?) " statement
 func (statement *Statement) In(column string, args ...interface{}) *Statement {
-	in := builder.In(statement.Engine.Quote(column), args...)
+	in := phoenixormbuilder.In(statement.Engine.Quote(column), args...)
 	statement.cond = statement.cond.And(in)
 	return statement
 }
 
 // NotIn generate "Where column NOT IN (?) " statement
 func (statement *Statement) NotIn(column string, args ...interface{}) *Statement {
-	notIn := builder.NotIn(statement.Engine.Quote(column), args...)
+	notIn := phoenixormbuilder.NotIn(statement.Engine.Quote(column), args...)
 	statement.cond = statement.cond.And(notIn)
 	return statement
 }
@@ -738,7 +738,7 @@ func (statement *Statement) Join(joinOP string, tablename interface{}, condition
 	}
 
 	switch tp := tablename.(type) {
-	case builder.Builder:
+	case phoenixormbuilder.Builder:
 		subSQL, subQueryArgs, err := tp.ToSQL()
 		if err != nil {
 			statement.lastError = err
@@ -750,7 +750,7 @@ func (statement *Statement) Join(joinOP string, tablename interface{}, condition
 		var aliasName = strings.Trim(tbs[len(tbs)-1], strings.Join(quotes, ""))
 		fmt.Fprintf(&buf, "(%s) %s ON %v", subSQL, aliasName, condition)
 		statement.joinArgs = append(statement.joinArgs, subQueryArgs...)
-	case *builder.Builder:
+	case *phoenixormbuilder.Builder:
 		subSQL, subQueryArgs, err := tp.ToSQL()
 		if err != nil {
 			statement.lastError = err
@@ -900,7 +900,7 @@ func (statement *Statement) genAddColumnStr(col *phoenixormcore.Column) (string,
 	return sql, []interface{}{}
 }
 
-func (statement *Statement) buildConds(table *phoenixormcore.Table, bean interface{}, includeVersion bool, includeUpdated bool, includeNil bool, includeAutoIncr bool, addedTableName bool) (builder.Cond, error) {
+func (statement *Statement) buildConds(table *phoenixormcore.Table, bean interface{}, includeVersion bool, includeUpdated bool, includeNil bool, includeAutoIncr bool, addedTableName bool) (phoenixormbuilder.Cond, error) {
 	return statement.Engine.buildConds(table, bean, includeVersion, includeUpdated, includeNil, includeAutoIncr, statement.allUseBool, statement.useAllCols,
 		statement.unscoped, statement.mustColumnMap, statement.TableName(), statement.TableAlias, addedTableName)
 }
@@ -926,7 +926,7 @@ func (statement *Statement) genConds(bean interface{}) (string, []interface{}, e
 		return "", nil, err
 	}
 
-	return builder.ToSQL(statement.cond)
+	return phoenixormbuilder.ToSQL(statement.cond)
 }
 
 func (statement *Statement) genGetSQL(bean interface{}) (string, []interface{}, error) {
@@ -971,7 +971,7 @@ func (statement *Statement) genGetSQL(bean interface{}) (string, []interface{}, 
 			return "", nil, err
 		}
 	}
-	condSQL, condArgs, err := builder.ToSQL(statement.cond)
+	condSQL, condArgs, err := phoenixormbuilder.ToSQL(statement.cond)
 	if err != nil {
 		return "", nil, err
 	}
@@ -992,7 +992,7 @@ func (statement *Statement) genCountSQL(beans ...interface{}) (string, []interfa
 		statement.setRefBean(beans[0])
 		condSQL, condArgs, err = statement.genConds(beans[0])
 	} else {
-		condSQL, condArgs, err = builder.ToSQL(statement.cond)
+		condSQL, condArgs, err = phoenixormbuilder.ToSQL(statement.cond)
 	}
 	if err != nil {
 		return "", nil, err
@@ -1178,7 +1178,7 @@ func (statement *Statement) processIDParam() error {
 
 	for i, col := range statement.RefTable.PKColumns() {
 		var colName = statement.colName(col, statement.TableName())
-		statement.cond = statement.cond.And(builder.Eq{colName: (*(statement.idParam))[i]})
+		statement.cond = statement.cond.And(phoenixormbuilder.Eq{colName: (*(statement.idParam))[i]})
 	}
 	return nil
 }

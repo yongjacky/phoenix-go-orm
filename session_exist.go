@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"reflect"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 // Exist returns true if the record exist otherwise return false
@@ -37,7 +37,7 @@ func (session *Session) Exist(bean ...interface{}) (bool, error) {
 			tableName = session.statement.Engine.Quote(tableName)
 
 			if session.statement.cond.IsValid() {
-				condSQL, condArgs, err := builder.ToSQL(session.statement.cond)
+				condSQL, condArgs, err := phoenixormbuilder.ToSQL(session.statement.cond)
 				if err != nil {
 					return false, err
 				}

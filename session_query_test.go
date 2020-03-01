@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -213,7 +213,7 @@ func TestQueryStringNoParam(t *testing.T) {
 		assert.EqualValues(t, "0", records[0]["msg"])
 	}
 
-	records, err = testEngine.Table("get_var4").Where(builder.Eq{"id": 1}).QueryString()
+	records, err = testEngine.Table("get_var4").Where(phoenixormbuilder.Eq{"id": 1}).QueryString()
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, len(records))
 	assert.EqualValues(t, "1", records[0]["id"])
@@ -250,7 +250,7 @@ func TestQuerySliceStringNoParam(t *testing.T) {
 		assert.EqualValues(t, "0", records[0][1])
 	}
 
-	records, err = testEngine.Table("get_var6").Where(builder.Eq{"id": 1}).QuerySliceString()
+	records, err = testEngine.Table("get_var6").Where(phoenixormbuilder.Eq{"id": 1}).QuerySliceString()
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, len(records))
 	assert.EqualValues(t, "1", records[0][0])
@@ -283,7 +283,7 @@ func TestQueryInterfaceNoParam(t *testing.T) {
 	assert.EqualValues(t, 1, toInt64(records[0]["id"]))
 	assert.EqualValues(t, 0, toInt64(records[0]["msg"]))
 
-	records, err = testEngine.Table("get_var5").Where(builder.Eq{"id": 1}).QueryInterface()
+	records, err = testEngine.Table("get_var5").Where(phoenixormbuilder.Eq{"id": 1}).QueryInterface()
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, len(records))
 	assert.EqualValues(t, 1, toInt64(records[0]["id"]))
@@ -330,7 +330,7 @@ func TestQueryWithBuilder(t *testing.T) {
 		assert.EqualValues(t, 3000, money)
 	}
 
-	results, err := testEngine.Query(builder.Select("*").From(testEngine.TableName("query_with_builder", true)))
+	results, err := testEngine.Query(phoenixormbuilder.Select("*").From(testEngine.TableName("query_with_builder", true)))
 	assert.NoError(t, err)
 	assertResult(t, results)
 }
@@ -372,7 +372,7 @@ func TestJoinWithSubQuery(t *testing.T) {
 	assert.EqualValues(t, 1, cnt)
 
 	var querys []JoinWithSubQuery1
-	err = testEngine.Join("INNER", builder.Select("id").From(testEngine.Quote(testEngine.TableName("join_with_sub_query_depart", true))),
+	err = testEngine.Join("INNER", phoenixormbuilder.Select("id").From(testEngine.Quote(testEngine.TableName("join_with_sub_query_depart", true))),
 		"join_with_sub_query_depart.id = join_with_sub_query1.depart_id").Find(&querys)
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, len(querys))

@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"strings"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 const (
@@ -100,7 +100,7 @@ func (session *Session) find(rowsSlicePtr interface{}, condiBean ...interface{})
 	var table = session.statement.RefTable
 
 	var addedTableName = (len(session.statement.JoinStr) > 0)
-	var autoCond builder.Cond
+	var autoCond phoenixormbuilder.Cond
 	if tp == tpStruct {
 		if !session.statement.noAutoCondition && len(condiBean) > 0 {
 			var err error
@@ -161,7 +161,7 @@ func (session *Session) find(rowsSlicePtr interface{}, condiBean ...interface{})
 		}
 
 		session.statement.cond = session.statement.cond.And(autoCond)
-		condSQL, condArgs, err := builder.ToSQL(session.statement.cond)
+		condSQL, condArgs, err := phoenixormbuilder.ToSQL(session.statement.cond)
 		if err != nil {
 			return err
 		}
@@ -429,9 +429,9 @@ func (session *Session) cacheFind(t reflect.Type, sqlStr string, rowsSlicePtr in
 			session.In("`"+table.PrimaryKeys[0]+"`", ff...)
 		} else {
 			for _, ie := range ides {
-				cond := builder.NewCond()
+				cond := phoenixormbuilder.NewCond()
 				for i, name := range table.PrimaryKeys {
-					cond = cond.And(builder.Eq{"`" + name + "`": ie[i]})
+					cond = cond.And(phoenixormbuilder.Eq{"`" + name + "`": ie[i]})
 				}
 				session.Or(cond)
 			}

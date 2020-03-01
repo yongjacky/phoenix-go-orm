@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 func (engine *Engine) buildConds(table *phoenixormcore.Table, bean interface{},
 	includeVersion bool, includeUpdated bool, includeNil bool,
 	includeAutoIncr bool, allUseBool bool, useAllCols bool, unscoped bool,
-	mustColumnMap map[string]bool, tableName, aliasName string, addedTableName bool) (builder.Cond, error) {
-	var conds []builder.Cond
+	mustColumnMap map[string]bool, tableName, aliasName string, addedTableName bool) (phoenixormbuilder.Cond, error) {
+	var conds []phoenixormbuilder.Cond
 	for _, col := range table.Columns() {
 		if !includeVersion && col.IsVersion {
 			continue
@@ -80,7 +80,7 @@ func (engine *Engine) buildConds(table *phoenixormcore.Table, bean interface{},
 		if fieldType.Kind() == reflect.Ptr {
 			if fieldValue.IsNil() {
 				if includeNil {
-					conds = append(conds, builder.Eq{colName: nil})
+					conds = append(conds, phoenixormbuilder.Eq{colName: nil})
 				}
 				continue
 			} else if !fieldValue.IsValid() {
@@ -225,8 +225,8 @@ func (engine *Engine) buildConds(table *phoenixormcore.Table, bean interface{},
 			val = fieldValue.Interface()
 		}
 
-		conds = append(conds, builder.Eq{colName: val})
+		conds = append(conds, phoenixormbuilder.Eq{colName: val})
 	}
 
-	return builder.And(conds...), nil
+	return phoenixormbuilder.And(conds...), nil
 }

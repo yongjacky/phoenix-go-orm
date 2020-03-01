@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 func TestSetExpr(t *testing.T) {
@@ -54,9 +54,9 @@ func TestSetExpr(t *testing.T) {
 
 	tableName := testEngine.TableName(new(UserExprIssue), true)
 	cnt, err = testEngine.SetExpr("issue_id",
-		builder.Select("id").
+		phoenixormbuilder.Select("id").
 			From(tableName).
-			Where(builder.Eq{"id": issue.Id})).
+			Where(phoenixormbuilder.Eq{"id": issue.Id})).
 		ID(1).
 		Update(new(UserExpr))
 	assert.NoError(t, err)

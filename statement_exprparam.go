@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"xorm.io/builder"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 )
 
 type ErrUnsupportedExprType struct {
@@ -56,10 +56,10 @@ func (exprs *exprParams) getByName(colName string) (exprParam, bool) {
 	return exprParam{}, false
 }
 
-func (exprs *exprParams) writeArgs(w *builder.BytesWriter) error {
+func (exprs *exprParams) writeArgs(w *phoenixormbuilder.BytesWriter) error {
 	for i, expr := range exprs.args {
 		switch arg := expr.(type) {
-		case *builder.Builder:
+		case *phoenixormbuilder.Builder:
 			if _, err := w.WriteString("("); err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func (exprs *exprParams) writeArgs(w *builder.BytesWriter) error {
 	return nil
 }
 
-func (exprs *exprParams) writeNameArgs(w *builder.BytesWriter) error {
+func (exprs *exprParams) writeNameArgs(w *phoenixormbuilder.BytesWriter) error {
 	for i, colName := range exprs.colNames {
 		if _, err := w.WriteString(colName); err != nil {
 			return err
@@ -101,7 +101,7 @@ func (exprs *exprParams) writeNameArgs(w *builder.BytesWriter) error {
 		}
 
 		switch arg := exprs.args[i].(type) {
-		case *builder.Builder:
+		case *phoenixormbuilder.Builder:
 			if _, err := w.WriteString("("); err != nil {
 				return err
 			}

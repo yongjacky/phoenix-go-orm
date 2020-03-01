@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"time"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 func (session *Session) queryPreprocess(sqlStr *string, paramStr ...interface{}) {
@@ -200,10 +200,10 @@ func convertSQLOrArgs(sqlOrArgs ...interface{}) (string, []interface{}, error) {
 	switch sqlOrArgs[0].(type) {
 	case string:
 		return sqlOrArgs[0].(string), sqlOrArgs[1:], nil
-	case *builder.Builder:
-		return sqlOrArgs[0].(*builder.Builder).ToSQL()
-	case builder.Builder:
-		bd := sqlOrArgs[0].(builder.Builder)
+	case *phoenixormbuilder.Builder:
+		return sqlOrArgs[0].(*phoenixormbuilder.Builder).ToSQL()
+	case phoenixormbuilder.Builder:
+		bd := sqlOrArgs[0].(phoenixormbuilder.Builder)
 		return bd.ToSQL()
 	}
 

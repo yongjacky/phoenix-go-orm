@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 func (session *Session) cacheUpdate(table *phoenixormcore.Table, tableName, sqlStr string, args ...interface{}) error {
@@ -243,8 +243,8 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 				tp = "''"
 			}
 			colNames = append(colNames, session.engine.Quote(colName)+"="+tp)
-		case *builder.Builder:
-			subQuery, subArgs, err := builder.ToSQL(tp)
+		case *phoenixormbuilder.Builder:
+			subQuery, subArgs, err := phoenixormbuilder.ToSQL(tp)
 			if err != nil {
 				return 0, err
 			}
@@ -260,12 +260,12 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 		return 0, err
 	}
 
-	var autoCond builder.Cond
+	var autoCond phoenixormbuilder.Cond
 	if !session.statement.noAutoCondition {
 		condBeanIsStruct := false
 		if len(condiBean) > 0 {
 			if c, ok := condiBean[0].(map[string]interface{}); ok {
-				autoCond = builder.Eq(c)
+				autoCond = phoenixormbuilder.Eq(c)
 			} else {
 				ct := reflect.TypeOf(condiBean[0])
 				k := ct.Kind()
@@ -316,12 +316,12 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 		}
 
 		if verValue != nil {
-			cond = cond.And(builder.Eq{session.engine.Quote(table.Version): verValue.Interface()})
+			cond = cond.And(phoenixormbuilder.Eq{session.engine.Quote(table.Version): verValue.Interface()})
 			colNames = append(colNames, session.engine.Quote(table.Version)+" = "+session.engine.Quote(table.Version)+" + 1")
 		}
 	}
 
-	condSQL, condArgs, err = builder.ToSQL(cond)
+	condSQL, condArgs, err = phoenixormbuilder.ToSQL(cond)
 	if err != nil {
 		return 0, err
 	}
@@ -343,9 +343,9 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 			condSQL = condSQL + fmt.Sprintf(" LIMIT %d", limitValue)
 		} else if st.Engine.dialect.DBType() == phoenixormcore.SQLITE {
 			tempCondSQL := condSQL + fmt.Sprintf(" LIMIT %d", limitValue)
-			cond = cond.And(builder.Expr(fmt.Sprintf("rowid IN (SELECT rowid FROM %v %v)",
+			cond = cond.And(phoenixormbuilder.Expr(fmt.Sprintf("rowid IN (SELECT rowid FROM %v %v)",
 				session.engine.Quote(tableName), tempCondSQL), condArgs...))
-			condSQL, condArgs, err = builder.ToSQL(cond)
+			condSQL, condArgs, err = phoenixormbuilder.ToSQL(cond)
 			if err != nil {
 				return 0, err
 			}
@@ -354,9 +354,9 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 			}
 		} else if st.Engine.dialect.DBType() == phoenixormcore.POSTGRES {
 			tempCondSQL := condSQL + fmt.Sprintf(" LIMIT %d", limitValue)
-			cond = cond.And(builder.Expr(fmt.Sprintf("CTID IN (SELECT CTID FROM %v %v)",
+			cond = cond.And(phoenixormbuilder.Expr(fmt.Sprintf("CTID IN (SELECT CTID FROM %v %v)",
 				session.engine.Quote(tableName), tempCondSQL), condArgs...))
-			condSQL, condArgs, err = builder.ToSQL(cond)
+			condSQL, condArgs, err = phoenixormbuilder.ToSQL(cond)
 			if err != nil {
 				return 0, err
 			}
@@ -367,11 +367,11 @@ func (session *Session) Update(bean interface{}, condiBean ...interface{}) (int6
 		} else if st.Engine.dialect.DBType() == phoenixormcore.MSSQL {
 			if st.OrderStr != "" && st.Engine.dialect.DBType() == phoenixormcore.MSSQL &&
 				table != nil && len(table.PrimaryKeys) == 1 {
-				cond = builder.Expr(fmt.Sprintf("%s IN (SELECT TOP (%d) %s FROM %v%v)",
+				cond = phoenixormbuilder.Expr(fmt.Sprintf("%s IN (SELECT TOP (%d) %s FROM %v%v)",
 					table.PrimaryKeys[0], limitValue, table.PrimaryKeys[0],
 					session.engine.Quote(tableName), condSQL), condArgs...)
 
-				condSQL, condArgs, err = builder.ToSQL(cond)
+				condSQL, condArgs, err = phoenixormbuilder.ToSQL(cond)
 				if err != nil {
 					return 0, err
 				}

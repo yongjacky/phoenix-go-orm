@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
 	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
-	"xorm.io/builder"
 )
 
 func (session *Session) genQuerySQL(sqlOrArgs ...interface{}) (string, []interface{}, error) {
@@ -58,7 +58,7 @@ func (session *Session) genQuerySQL(sqlOrArgs ...interface{}) (string, []interfa
 		return "", nil, err
 	}
 
-	condSQL, condArgs, err := builder.ToSQL(session.statement.cond)
+	condSQL, condArgs, err := phoenixormbuilder.ToSQL(session.statement.cond)
 	if err != nil {
 		return "", nil, err
 	}
