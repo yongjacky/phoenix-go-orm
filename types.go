@@ -7,10 +7,10 @@ package xorm
 import (
 	"reflect"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 var (
-	ptrPkType = reflect.TypeOf(&core.PK{})
-	pkType    = reflect.TypeOf(core.PK{})
+	ptrPkType = reflect.TypeOf(&phoenixormcore.PK{})
+	pkType    = reflect.TypeOf(phoenixormcore.PK{})
 )

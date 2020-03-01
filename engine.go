@@ -20,28 +20,28 @@ import (
 	"sync"
 	"time"
 
-	"xorm.io/builder"
-	"xorm.io/core"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // Engine is the major struct of xorm, it means a database manager.
 // Commonly, an application only need one engine
 type Engine struct {
-	db      *core.DB
-	dialect core.Dialect
+	db      *phoenixormcore.DB
+	dialect phoenixormcore.Dialect
 
-	ColumnMapper  core.IMapper
-	TableMapper   core.IMapper
+	ColumnMapper  phoenixormcore.IMapper
+	TableMapper   phoenixormcore.IMapper
 	TagIdentifier string
-	Tables        map[reflect.Type]*core.Table
+	Tables        map[reflect.Type]*phoenixormcore.Table
 
 	mutex  *sync.RWMutex
-	Cacher core.Cacher
+	Cacher phoenixormcore.Cacher
 
 	showSQL      bool
 	showExecTime bool
 
-	logger     core.ILogger
+	logger     phoenixormcore.ILogger
 	TZLocation *time.Location // The timezone of the application
 	DatabaseTZ *time.Location // The timezone of the database
 
@@ -51,24 +51,24 @@ type Engine struct {
 
 	engineGroup *EngineGroup
 
-	cachers    map[string]core.Cacher
+	cachers    map[string]phoenixormcore.Cacher
 	cacherLock sync.RWMutex
 
 	defaultContext context.Context
 }
 
-func (engine *Engine) setCacher(tableName string, cacher core.Cacher) {
+func (engine *Engine) setCacher(tableName string, cacher phoenixormcore.Cacher) {
 	engine.cacherLock.Lock()
 	engine.cachers[tableName] = cacher
 	engine.cacherLock.Unlock()
 }
 
-func (engine *Engine) SetCacher(tableName string, cacher core.Cacher) {
+func (engine *Engine) SetCacher(tableName string, cacher phoenixormcore.Cacher) {
 	engine.setCacher(tableName, cacher)
 }
 
-func (engine *Engine) getCacher(tableName string) core.Cacher {
-	var cacher core.Cacher
+func (engine *Engine) getCacher(tableName string) phoenixormcore.Cacher {
+	var cacher phoenixormcore.Cacher
 	var ok bool
 	engine.cacherLock.RLock()
 	cacher, ok = engine.cachers[tableName]
@@ -79,7 +79,7 @@ func (engine *Engine) getCacher(tableName string) core.Cacher {
 	return cacher
 }
 
-func (engine *Engine) GetCacher(tableName string) core.Cacher {
+func (engine *Engine) GetCacher(tableName string) phoenixormcore.Cacher {
 	return engine.getCacher(tableName)
 }
 
@@ -91,11 +91,11 @@ func (engine *Engine) BufferSize(size int) *Session {
 }
 
 // CondDeleted returns the conditions whether a record is soft deleted.
-func (engine *Engine) CondDeleted(colName string) builder.Cond {
-	if engine.dialect.DBType() == core.MSSQL {
-		return builder.IsNull{colName}
+func (engine *Engine) CondDeleted(colName string) phoenixormbuilder.Cond {
+	if engine.dialect.DBType() == phoenixormcore.MSSQL {
+		return phoenixormbuilder.IsNull{colName}
 	}
-	return builder.IsNull{colName}.Or(builder.Eq{colName: zeroTime1})
+	return phoenixormbuilder.IsNull{colName}.Or(phoenixormbuilder.Eq{colName: zeroTime1})
 }
 
 // ShowSQL show SQL statement or not on logger if log level is great than INFO
@@ -118,19 +118,19 @@ func (engine *Engine) ShowExecTime(show ...bool) {
 }
 
 // Logger return the logger interface
-func (engine *Engine) Logger() core.ILogger {
+func (engine *Engine) Logger() phoenixormcore.ILogger {
 	return engine.logger
 }
 
 // SetLogger set the new logger
-func (engine *Engine) SetLogger(logger core.ILogger) {
+func (engine *Engine) SetLogger(logger phoenixormcore.ILogger) {
 	engine.logger = logger
 	engine.showSQL = logger.IsShowSQL()
 	engine.dialect.SetLogger(logger)
 }
 
 // SetLogLevel sets the logger level
-func (engine *Engine) SetLogLevel(level core.LogLevel) {
+func (engine *Engine) SetLogLevel(level phoenixormcore.LogLevel) {
 	engine.logger.SetLevel(level)
 }
 
@@ -152,18 +152,18 @@ func (engine *Engine) DataSourceName() string {
 }
 
 // SetMapper set the name mapping rules
-func (engine *Engine) SetMapper(mapper core.IMapper) {
+func (engine *Engine) SetMapper(mapper phoenixormcore.IMapper) {
 	engine.SetTableMapper(mapper)
 	engine.SetColumnMapper(mapper)
 }
 
 // SetTableMapper set the table name mapping rule
-func (engine *Engine) SetTableMapper(mapper core.IMapper) {
+func (engine *Engine) SetTableMapper(mapper phoenixormcore.IMapper) {
 	engine.TableMapper = mapper
 }
 
 // SetColumnMapper set the column name mapping rule
-func (engine *Engine) SetColumnMapper(mapper core.IMapper) {
+func (engine *Engine) SetColumnMapper(mapper phoenixormcore.IMapper) {
 	engine.ColumnMapper = mapper
 }
 
@@ -207,25 +207,46 @@ func (engine *Engine) QuoteTo(buf *strings.Builder, value string) {
 		return
 	}
 
-	quotePair := engine.dialect.Quote("")
+	quoteTo(buf, engine.dialect.Quote(""), value)
+}
 
-	if value[0] == '`' || len(quotePair) < 2 || value[0] == quotePair[0] { // no quote
+func quoteTo(buf *strings.Builder, quotePair string, value string) {
+	if len(quotePair) < 2 { // no quote
 		_, _ = buf.WriteString(value)
 		return
-	} else {
-		prefix, suffix := quotePair[0], quotePair[1]
+	}
 
-		_ = buf.WriteByte(prefix)
-		for i := 0; i < len(value); i++ {
-			if value[i] == '.' {
-				_ = buf.WriteByte(suffix)
-				_ = buf.WriteByte('.')
-				_ = buf.WriteByte(prefix)
+	prefix, suffix := quotePair[0], quotePair[1]
+
+	i := 0
+	for i < len(value) {
+		// start of a token; might be already quoted
+		if value[i] == '.' {
+			_ = buf.WriteByte('.')
+			i++
+		} else if value[i] == prefix || value[i] == '`' {
+			// Has quotes; skip/normalize `name` to prefix+name+sufix
+			var ch byte
+			if value[i] == prefix {
+				ch = suffix
 			} else {
+				ch = '`'
+			}
+			i++
+			_ = buf.WriteByte(prefix)
+			for ; i < len(value) && value[i] != ch; i++ {
 				_ = buf.WriteByte(value[i])
 			}
+			_ = buf.WriteByte(suffix)
+			i++
+		} else {
+			// Requires quotes
+			_ = buf.WriteByte(prefix)
+			for ; i < len(value) && value[i] != '.'; i++ {
+				_ = buf.WriteByte(value[i])
+			}
+			_ = buf.WriteByte(suffix)
 		}
-		_ = buf.WriteByte(suffix)
 	}
 }
 
@@ -236,12 +257,12 @@ func (engine *Engine) quote(sql string) string {
 // SqlType will be deprecated, please use SQLType instead
 //
 // Deprecated: use SQLType instead
-func (engine *Engine) SqlType(c *core.Column) string {
+func (engine *Engine) SqlType(c *phoenixormcore.Column) string {
 	return engine.SQLType(c)
 }
 
-// SQLType A simple wrapper to dialect's core.SqlType method
-func (engine *Engine) SQLType(c *core.Column) string {
+// SQLType A simple wrapper to dialect's phoenixormcore.SqlType method
+func (engine *Engine) SQLType(c *phoenixormcore.Column) string {
 	return engine.dialect.SqlType(c)
 }
 
@@ -266,12 +287,12 @@ func (engine *Engine) SetMaxIdleConns(conns int) {
 }
 
 // SetDefaultCacher set the default cacher. Xorm's default not enable cacher.
-func (engine *Engine) SetDefaultCacher(cacher core.Cacher) {
+func (engine *Engine) SetDefaultCacher(cacher phoenixormcore.Cacher) {
 	engine.Cacher = cacher
 }
 
 // GetDefaultCacher returns the default cacher
-func (engine *Engine) GetDefaultCacher() core.Cacher {
+func (engine *Engine) GetDefaultCacher() phoenixormcore.Cacher {
 	return engine.Cacher
 }
 
@@ -291,23 +312,23 @@ func (engine *Engine) NoCascade() *Session {
 }
 
 // MapCacher Set a table use a special cacher
-func (engine *Engine) MapCacher(bean interface{}, cacher core.Cacher) error {
+func (engine *Engine) MapCacher(bean interface{}, cacher phoenixormcore.Cacher) error {
 	engine.setCacher(engine.TableName(bean, true), cacher)
 	return nil
 }
 
 // NewDB provides an interface to operate database directly
-func (engine *Engine) NewDB() (*core.DB, error) {
-	return core.OpenDialect(engine.dialect)
+func (engine *Engine) NewDB() (*phoenixormcore.DB, error) {
+	return phoenixormcore.OpenDialect(engine.dialect)
 }
 
 // DB return the wrapper of sql.DB
-func (engine *Engine) DB() *core.DB {
+func (engine *Engine) DB() *phoenixormcore.DB {
 	return engine.db
 }
 
 // Dialect return database dialect
-func (engine *Engine) Dialect() core.Dialect {
+func (engine *Engine) Dialect() phoenixormcore.Dialect {
 	return engine.dialect
 }
 
@@ -330,7 +351,7 @@ func (engine *Engine) Ping() error {
 	return session.Ping()
 }
 
-// logging sql
+// logSQL save sql
 func (engine *Engine) logSQL(sqlStr string, sqlArgs ...interface{}) {
 	if engine.showSQL && !engine.showExecTime {
 		if len(sqlArgs) > 0 {
@@ -377,7 +398,7 @@ func (engine *Engine) NoAutoCondition(no ...bool) *Session {
 	return session.NoAutoCondition(no...)
 }
 
-func (engine *Engine) loadTableInfo(table *core.Table) error {
+func (engine *Engine) loadTableInfo(table *phoenixormcore.Table) error {
 	colSeq, cols, err := engine.dialect.GetColumns(table.Name)
 	if err != nil {
 		return err
@@ -404,7 +425,7 @@ func (engine *Engine) loadTableInfo(table *core.Table) error {
 }
 
 // DBMetas Retrieve all tables, columns, indexes' informations from database.
-func (engine *Engine) DBMetas() ([]*core.Table, error) {
+func (engine *Engine) DBMetas() ([]*phoenixormcore.Table, error) {
 	tables, err := engine.dialect.GetTables()
 	if err != nil {
 		return nil, err
@@ -419,7 +440,7 @@ func (engine *Engine) DBMetas() ([]*core.Table, error) {
 }
 
 // DumpAllToFile dump database all table structs and data to a file
-func (engine *Engine) DumpAllToFile(fp string, tp ...core.DbType) error {
+func (engine *Engine) DumpAllToFile(fp string, tp ...phoenixormcore.DbType) error {
 	f, err := os.Create(fp)
 	if err != nil {
 		return err
@@ -429,7 +450,7 @@ func (engine *Engine) DumpAllToFile(fp string, tp ...core.DbType) error {
 }
 
 // DumpAll dump database all table structs and data to w
-func (engine *Engine) DumpAll(w io.Writer, tp ...core.DbType) error {
+func (engine *Engine) DumpAll(w io.Writer, tp ...phoenixormcore.DbType) error {
 	tables, err := engine.DBMetas()
 	if err != nil {
 		return err
@@ -438,7 +459,7 @@ func (engine *Engine) DumpAll(w io.Writer, tp ...core.DbType) error {
 }
 
 // DumpTablesToFile dump specified tables to SQL file.
-func (engine *Engine) DumpTablesToFile(tables []*core.Table, fp string, tp ...core.DbType) error {
+func (engine *Engine) DumpTablesToFile(tables []*phoenixormcore.Table, fp string, tp ...phoenixormcore.DbType) error {
 	f, err := os.Create(fp)
 	if err != nil {
 		return err
@@ -448,19 +469,19 @@ func (engine *Engine) DumpTablesToFile(tables []*core.Table, fp string, tp ...co
 }
 
 // DumpTables dump specify tables to io.Writer
-func (engine *Engine) DumpTables(tables []*core.Table, w io.Writer, tp ...core.DbType) error {
+func (engine *Engine) DumpTables(tables []*phoenixormcore.Table, w io.Writer, tp ...phoenixormcore.DbType) error {
 	return engine.dumpTables(tables, w, tp...)
 }
 
 // dumpTables dump database all table structs and data to w with specify db type
-func (engine *Engine) dumpTables(tables []*core.Table, w io.Writer, tp ...core.DbType) error {
-	var dialect core.Dialect
+func (engine *Engine) dumpTables(tables []*phoenixormcore.Table, w io.Writer, tp ...phoenixormcore.DbType) error {
+	var dialect phoenixormcore.Dialect
 	var distDBName string
 	if len(tp) == 0 {
 		dialect = engine.dialect
 		distDBName = string(engine.dialect.DBType())
 	} else {
-		dialect = core.QueryDialect(tp[0])
+		dialect = phoenixormcore.QueryDialect(tp[0])
 		if dialect == nil {
 			return errors.New("Unsupported database type")
 		}
@@ -539,19 +560,19 @@ func (engine *Engine) dumpTables(tables []*core.Table, w io.Writer, tp ...core.D
 				} else if col.SQLType.IsNumeric() {
 					switch reflect.TypeOf(d).Kind() {
 					case reflect.Slice:
-						if col.SQLType.Name == core.Bool {
+						if col.SQLType.Name == phoenixormcore.Bool {
 							temp += fmt.Sprintf(", %v", strconv.FormatBool(d.([]byte)[0] != byte('0')))
 						} else {
 							temp += fmt.Sprintf(", %s", string(d.([]byte)))
 						}
 					case reflect.Int16, reflect.Int8, reflect.Int32, reflect.Int64, reflect.Int:
-						if col.SQLType.Name == core.Bool {
+						if col.SQLType.Name == phoenixormcore.Bool {
 							temp += fmt.Sprintf(", %v", strconv.FormatBool(reflect.ValueOf(d).Int() > 0))
 						} else {
 							temp += fmt.Sprintf(", %v", d)
 						}
 					case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-						if col.SQLType.Name == core.Bool {
+						if col.SQLType.Name == phoenixormcore.Bool {
 							temp += fmt.Sprintf(", %v", strconv.FormatBool(reflect.ValueOf(d).Uint() > 0))
 						} else {
 							temp += fmt.Sprintf(", %v", d)
@@ -579,7 +600,7 @@ func (engine *Engine) dumpTables(tables []*core.Table, w io.Writer, tp ...core.D
 		}
 
 		// FIXME: Hack for postgres
-		if string(dialect.DBType()) == core.POSTGRES && table.AutoIncrColumn() != nil {
+		if string(dialect.DBType()) == phoenixormcore.POSTGRES && table.AutoIncrColumn() != nil {
 			_, err = io.WriteString(w, "SELECT setval('"+table.Name+"_id_seq', COALESCE((SELECT MAX("+table.AutoIncrColumn().Name+") + 1 FROM "+dialect.Quote(table.Name)+"), 1), false);\n")
 			if err != nil {
 				return err
@@ -824,7 +845,7 @@ func (engine *Engine) UnMapType(t reflect.Type) {
 	delete(engine.Tables, t)
 }
 
-func (engine *Engine) autoMapType(v reflect.Value) (*core.Table, error) {
+func (engine *Engine) autoMapType(v reflect.Value) (*phoenixormcore.Table, error) {
 	t := v.Type()
 	engine.mutex.Lock()
 	defer engine.mutex.Unlock()
@@ -856,7 +877,7 @@ func (engine *Engine) GobRegister(v interface{}) *Engine {
 
 // Table table struct
 type Table struct {
-	*core.Table
+	*phoenixormcore.Table
 	Name string
 }
 
@@ -875,12 +896,12 @@ func (engine *Engine) TableInfo(bean interface{}) *Table {
 	return &Table{tb, engine.TableName(bean)}
 }
 
-func addIndex(indexName string, table *core.Table, col *core.Column, indexType int) {
+func addIndex(indexName string, table *phoenixormcore.Table, col *phoenixormcore.Column, indexType int) {
 	if index, ok := table.Indexes[indexName]; ok {
 		index.AddColumn(col.Name)
 		col.Indexes[index.Name] = indexType
 	} else {
-		index := core.NewIndex(indexName, indexType)
+		index := phoenixormcore.NewIndex(indexName, indexType)
 		index.AddColumn(col.Name)
 		table.AddIndex(index)
 		col.Indexes[index.Name] = indexType
@@ -896,9 +917,9 @@ var (
 	tpTableName = reflect.TypeOf((*TableName)(nil)).Elem()
 )
 
-func (engine *Engine) mapType(v reflect.Value) (*core.Table, error) {
+func (engine *Engine) mapType(v reflect.Value) (*phoenixormcore.Table, error) {
 	t := v.Type()
-	table := core.NewEmptyTable()
+	table := phoenixormcore.NewEmptyTable()
 	table.Type = t
 	table.Name = engine.tbNameForMap(v)
 
@@ -909,17 +930,17 @@ func (engine *Engine) mapType(v reflect.Value) (*core.Table, error) {
 		tag := t.Field(i).Tag
 
 		ormTagStr := tag.Get(engine.TagIdentifier)
-		var col *core.Column
+		var col *phoenixormcore.Column
 		fieldValue := v.Field(i)
 		fieldType := fieldValue.Type()
 
 		if ormTagStr != "" {
-			col = &core.Column{
+			col = &phoenixormcore.Column{
 				FieldName:       t.Field(i).Name,
 				Nullable:        true,
 				IsPrimaryKey:    false,
 				IsAutoIncrement: false,
-				MapType:         core.TWOSIDES,
+				MapType:         phoenixormcore.TWOSIDES,
 				Indexes:         make(map[string]int),
 				DefaultIsEmpty:  true,
 			}
@@ -1007,7 +1028,7 @@ func (engine *Engine) mapType(v reflect.Value) (*core.Table, error) {
 				}
 
 				if col.SQLType.Name == "" {
-					col.SQLType = core.Type2SQLType(fieldType)
+					col.SQLType = phoenixormcore.Type2SQLType(fieldType)
 				}
 				engine.dialect.SqlType(col)
 				if col.Length == 0 {
@@ -1021,9 +1042,9 @@ func (engine *Engine) mapType(v reflect.Value) (*core.Table, error) {
 				}
 
 				if ctx.isUnique {
-					ctx.indexNames[col.Name] = core.UniqueType
+					ctx.indexNames[col.Name] = phoenixormcore.UniqueType
 				} else if ctx.isIndex {
-					ctx.indexNames[col.Name] = core.IndexType
+					ctx.indexNames[col.Name] = phoenixormcore.IndexType
 				}
 
 				for indexName, indexType := range ctx.indexNames {
@@ -1031,18 +1052,18 @@ func (engine *Engine) mapType(v reflect.Value) (*core.Table, error) {
 				}
 			}
 		} else {
-			var sqlType core.SQLType
+			var sqlType phoenixormcore.SQLType
 			if fieldValue.CanAddr() {
-				if _, ok := fieldValue.Addr().Interface().(core.Conversion); ok {
-					sqlType = core.SQLType{Name: core.Text}
+				if _, ok := fieldValue.Addr().Interface().(phoenixormcore.Conversion); ok {
+					sqlType = phoenixormcore.SQLType{Name: phoenixormcore.Text}
 				}
 			}
-			if _, ok := fieldValue.Interface().(core.Conversion); ok {
-				sqlType = core.SQLType{Name: core.Text}
+			if _, ok := fieldValue.Interface().(phoenixormcore.Conversion); ok {
+				sqlType = phoenixormcore.SQLType{Name: phoenixormcore.Text}
 			} else {
-				sqlType = core.Type2SQLType(fieldType)
+				sqlType = phoenixormcore.Type2SQLType(fieldType)
 			}
-			col = core.NewColumn(engine.ColumnMapper.Obj2Table(t.Field(i).Name),
+			col = phoenixormcore.NewColumn(engine.ColumnMapper.Obj2Table(t.Field(i).Name),
 				t.Field(i).Name, sqlType, sqlType.DefaultLength,
 				sqlType.DefaultLength2, true)
 
@@ -1101,24 +1122,24 @@ func (engine *Engine) IsTableExist(beanOrTableName interface{}) (bool, error) {
 // IdOf get id from one struct
 //
 // Deprecated: use IDOf instead.
-func (engine *Engine) IdOf(bean interface{}) core.PK {
+func (engine *Engine) IdOf(bean interface{}) phoenixormcore.PK {
 	return engine.IDOf(bean)
 }
 
 // IDOf get id from one struct
-func (engine *Engine) IDOf(bean interface{}) core.PK {
+func (engine *Engine) IDOf(bean interface{}) phoenixormcore.PK {
 	return engine.IdOfV(reflect.ValueOf(bean))
 }
 
 // IdOfV get id from one value of struct
 //
 // Deprecated: use IDOfV instead.
-func (engine *Engine) IdOfV(rv reflect.Value) core.PK {
+func (engine *Engine) IdOfV(rv reflect.Value) phoenixormcore.PK {
 	return engine.IDOfV(rv)
 }
 
 // IDOfV get id from one value of struct
-func (engine *Engine) IDOfV(rv reflect.Value) core.PK {
+func (engine *Engine) IDOfV(rv reflect.Value) phoenixormcore.PK {
 	pk, err := engine.idOfV(rv)
 	if err != nil {
 		engine.logger.Error(err)
@@ -1127,7 +1148,7 @@ func (engine *Engine) IDOfV(rv reflect.Value) core.PK {
 	return pk
 }
 
-func (engine *Engine) idOfV(rv reflect.Value) (core.PK, error) {
+func (engine *Engine) idOfV(rv reflect.Value) (phoenixormcore.PK, error) {
 	v := reflect.Indirect(rv)
 	table, err := engine.autoMapType(v)
 	if err != nil {
@@ -1170,10 +1191,10 @@ func (engine *Engine) idOfV(rv reflect.Value) (core.PK, error) {
 			return nil, err
 		}
 	}
-	return core.PK(pk), nil
+	return phoenixormcore.PK(pk), nil
 }
 
-func (engine *Engine) idTypeAssertion(col *core.Column, sid string) (interface{}, error) {
+func (engine *Engine) idTypeAssertion(col *phoenixormcore.Column, sid string) (interface{}, error) {
 	if col.SQLType.IsNumeric() {
 		n, err := strconv.ParseInt(sid, 10, 64)
 		if err != nil {
@@ -1285,7 +1306,7 @@ func (engine *Engine) Sync(beans ...interface{}) error {
 				if err := session.statement.setRefBean(bean); err != nil {
 					return err
 				}
-				if index.Type == core.UniqueType {
+				if index.Type == phoenixormcore.UniqueType {
 					isExist, err := session.isIndexExist2(tableNameNoSchema, index.Cols, true)
 					if err != nil {
 						return err
@@ -1300,7 +1321,7 @@ func (engine *Engine) Sync(beans ...interface{}) error {
 							return err
 						}
 					}
-				} else if index.Type == core.IndexType {
+				} else if index.Type == phoenixormcore.IndexType {
 					isExist, err := session.isIndexExist2(tableNameNoSchema, index.Cols, false)
 					if err != nil {
 						return err
@@ -1569,7 +1590,7 @@ func (engine *Engine) Import(r io.Reader) ([]sql.Result, error) {
 }
 
 // nowTime return current time
-func (engine *Engine) nowTime(col *core.Column) (interface{}, time.Time) {
+func (engine *Engine) nowTime(col *phoenixormcore.Column) (interface{}, time.Time) {
 	t := time.Now()
 	var tz = engine.DatabaseTZ
 	if !col.DisableTimeZone && col.TimeZone != nil {
@@ -1578,7 +1599,7 @@ func (engine *Engine) nowTime(col *core.Column) (interface{}, time.Time) {
 	return engine.formatTime(col.SQLType.Name, t.In(tz)), t.In(engine.TZLocation)
 }
 
-func (engine *Engine) formatColTime(col *core.Column, t time.Time) (v interface{}) {
+func (engine *Engine) formatColTime(col *phoenixormcore.Column, t time.Time) (v interface{}) {
 	if t.IsZero() {
 		if col.Nullable {
 			return nil
@@ -1595,20 +1616,20 @@ func (engine *Engine) formatColTime(col *core.Column, t time.Time) (v interface{
 // formatTime format time as column type
 func (engine *Engine) formatTime(sqlTypeName string, t time.Time) (v interface{}) {
 	switch sqlTypeName {
-	case core.Time:
+	case phoenixormcore.Time:
 		s := t.Format("2006-01-02 15:04:05") // time.RFC3339
 		v = s[11:19]
-	case core.Date:
+	case phoenixormcore.Date:
 		v = t.Format("2006-01-02")
-	case core.DateTime, core.TimeStamp:
+	case phoenixormcore.DateTime, phoenixormcore.TimeStamp:
 		v = t.Format("2006-01-02 15:04:05")
-	case core.TimeStampz:
-		if engine.dialect.DBType() == core.MSSQL {
+	case phoenixormcore.TimeStampz:
+		if engine.dialect.DBType() == phoenixormcore.MSSQL {
 			v = t.Format("2006-01-02T15:04:05.9999999Z07:00")
 		} else {
 			v = t.Format(time.RFC3339Nano)
 		}
-	case core.BigInt, core.Int:
+	case phoenixormcore.BigInt, phoenixormcore.Int:
 		v = t.Unix()
 	default:
 		v = t
@@ -1617,12 +1638,12 @@ func (engine *Engine) formatTime(sqlTypeName string, t time.Time) (v interface{}
 }
 
 // GetColumnMapper returns the column name mapper
-func (engine *Engine) GetColumnMapper() core.IMapper {
+func (engine *Engine) GetColumnMapper() phoenixormcore.IMapper {
 	return engine.ColumnMapper
 }
 
 // GetTableMapper returns the table name mapper
-func (engine *Engine) GetTableMapper() core.IMapper {
+func (engine *Engine) GetTableMapper() phoenixormcore.IMapper {
 	return engine.TableMapper
 }
 

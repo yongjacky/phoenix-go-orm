@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"log/syslog"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
-var _ core.ILogger = &SyslogLogger{}
+var _ phoenixormcore.ILogger = &SyslogLogger{}
 
 // SyslogLogger will be depricated
 type SyslogLogger struct {
@@ -21,7 +21,7 @@ type SyslogLogger struct {
 	showSQL bool
 }
 
-// NewSyslogLogger implements core.ILogger
+// NewSyslogLogger implements phoenixormcore.ILogger
 func NewSyslogLogger(w *syslog.Writer) *SyslogLogger {
 	return &SyslogLogger{w: w}
 }
@@ -67,12 +67,12 @@ func (s *SyslogLogger) Warnf(format string, v ...interface{}) {
 }
 
 // Level shows log level
-func (s *SyslogLogger) Level() core.LogLevel {
-	return core.LOG_UNKNOWN
+func (s *SyslogLogger) Level() phoenixormcore.LogLevel {
+	return phoenixormcore.LOG_UNKNOWN
 }
 
 // SetLevel always return error, as current log/syslog package doesn't allow to set priority level after syslog.Writer created
-func (s *SyslogLogger) SetLevel(l core.LogLevel) {}
+func (s *SyslogLogger) SetLevel(l phoenixormcore.LogLevel) {}
 
 // ShowSQL set if logging SQL
 func (s *SyslogLogger) ShowSQL(show ...bool) {

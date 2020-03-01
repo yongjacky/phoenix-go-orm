@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"time"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // Interface defines the interface which Engine, EngineGroup and Session will implementate.
@@ -76,29 +76,31 @@ type EngineInterface interface {
 	ClearCache(...interface{}) error
 	Context(context.Context) *Session
 	CreateTables(...interface{}) error
-	DBMetas() ([]*core.Table, error)
-	Dialect() core.Dialect
+	DBMetas() ([]*phoenixormcore.Table, error)
+	Dialect() phoenixormcore.Dialect
 	DropTables(...interface{}) error
-	DumpAllToFile(fp string, tp ...core.DbType) error
-	GetCacher(string) core.Cacher
-	GetColumnMapper() core.IMapper
-	GetDefaultCacher() core.Cacher
-	GetTableMapper() core.IMapper
+	DumpAllToFile(fp string, tp ...phoenixormcore.DbType) error
+	GetCacher(string) phoenixormcore.Cacher
+	GetColumnMapper() phoenixormcore.IMapper
+	GetDefaultCacher() phoenixormcore.Cacher
+	GetTableMapper() phoenixormcore.IMapper
 	GetTZDatabase() *time.Location
 	GetTZLocation() *time.Location
-	MapCacher(interface{}, core.Cacher) error
+	MapCacher(interface{}, phoenixormcore.Cacher) error
 	NewSession() *Session
 	NoAutoTime() *Session
 	Quote(string) string
-	SetCacher(string, core.Cacher)
+	SetCacher(string, phoenixormcore.Cacher)
 	SetConnMaxLifetime(time.Duration)
-	SetDefaultCacher(core.Cacher)
-	SetLogger(logger core.ILogger)
-	SetLogLevel(core.LogLevel)
-	SetMapper(core.IMapper)
+	SetColumnMapper(phoenixormcore.IMapper)
+	SetDefaultCacher(phoenixormcore.Cacher)
+	SetLogger(logger phoenixormcore.ILogger)
+	SetLogLevel(phoenixormcore.LogLevel)
+	SetMapper(phoenixormcore.IMapper)
 	SetMaxOpenConns(int)
 	SetMaxIdleConns(int)
 	SetSchema(string)
+	SetTableMapper(phoenixormcore.IMapper)
 	SetTZDatabase(tz *time.Location)
 	SetTZLocation(tz *time.Location)
 	ShowExecTime(...bool)

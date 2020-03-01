@@ -7,8 +7,8 @@ package xorm
 import (
 	"testing"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestLRUCache(t *testing.T) {
@@ -20,7 +20,7 @@ func TestLRUCache(t *testing.T) {
 	cacher := NewLRUCacher(store, 10000)
 
 	tableName := "cache_object1"
-	pks := []core.PK{
+	pks := []phoenixormcore.PK{
 		{1},
 		{2},
 	}

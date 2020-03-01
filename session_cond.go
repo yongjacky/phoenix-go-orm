@@ -4,7 +4,9 @@
 
 package xorm
 
-import "xorm.io/builder"
+import (
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
+)
 
 // Sql provides raw sql input parameter. When you have a complex SQL statement
 // and cannot use Where, Id, In and etc. Methods to describe, you can use SQL.
@@ -65,6 +67,6 @@ func (session *Session) NotIn(column string, args ...interface{}) *Session {
 }
 
 // Conds returns session query conditions except auto bean conditions
-func (session *Session) Conds() builder.Cond {
+func (session *Session) Conds() phoenixormbuilder.Cond {
 	return session.statement.cond
 }

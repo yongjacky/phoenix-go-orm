@@ -17,8 +17,8 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 	_ "github.com/ziutek/mymysql/godrv"
-	"xorm.io/core"
 )
 
 var (
@@ -36,8 +36,8 @@ var (
 	schema             = flag.String("schema", "", "specify the schema")
 	ignoreSelectUpdate = flag.Bool("ignore_select_update", false, "ignore select update if implementation difference, only for tidb")
 
-	tableMapper core.IMapper
-	colMapper   core.IMapper
+	tableMapper phoenixormcore.IMapper
+	colMapper   phoenixormcore.IMapper
 )
 
 func createEngine(dbType, connStr string) error {
@@ -46,7 +46,7 @@ func createEngine(dbType, connStr string) error {
 
 		if !*cluster {
 			switch strings.ToLower(dbType) {
-			case core.MSSQL:
+			case phoenixormcore.MSSQL:
 				db, err := sql.Open(dbType, strings.Replace(connStr, "xorm_test", "master", -1))
 				if err != nil {
 					return err
@@ -56,7 +56,7 @@ func createEngine(dbType, connStr string) error {
 				}
 				db.Close()
 				*ignoreSelectUpdate = true
-			case core.POSTGRES:
+			case phoenixormcore.POSTGRES:
 				db, err := sql.Open(dbType, connStr)
 				if err != nil {
 					return err
@@ -79,7 +79,7 @@ func createEngine(dbType, connStr string) error {
 				}
 				db.Close()
 				*ignoreSelectUpdate = true
-			case core.MYSQL:
+			case phoenixormcore.MYSQL:
 				db, err := sql.Open(dbType, strings.Replace(connStr, "xorm_test", "mysql", -1))
 				if err != nil {
 					return err
@@ -107,7 +107,7 @@ func createEngine(dbType, connStr string) error {
 			testEngine.SetSchema(*schema)
 		}
 		testEngine.ShowSQL(*showSQL)
-		testEngine.SetLogLevel(core.LOG_DEBUG)
+		testEngine.SetLogLevel(phoenixormcore.LOG_DEBUG)
 		if *cache {
 			cacher := NewLRUCacher(NewMemoryStore(), 100000)
 			testEngine.SetDefaultCacher(cacher)
@@ -116,11 +116,11 @@ func createEngine(dbType, connStr string) error {
 		if len(*mapType) > 0 {
 			switch *mapType {
 			case "snake":
-				testEngine.SetMapper(core.SnakeMapper{})
+				testEngine.SetMapper(phoenixormcore.SnakeMapper{})
 			case "same":
-				testEngine.SetMapper(core.SameMapper{})
+				testEngine.SetMapper(phoenixormcore.SameMapper{})
 			case "gonic":
-				testEngine.SetMapper(core.LintGonicMapper)
+				testEngine.SetMapper(phoenixormcore.LintGonicMapper)
 			}
 		}
 	}

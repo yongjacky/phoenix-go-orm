@@ -7,8 +7,8 @@ package xorm
 import (
 	"testing"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 type IDGonicMapper struct {
@@ -20,7 +20,7 @@ func TestGonicMapperID(t *testing.T) {
 
 	oldMapper := testEngine.GetColumnMapper()
 	testEngine.UnMapType(rValue(new(IDGonicMapper)).Type())
-	testEngine.SetMapper(core.LintGonicMapper)
+	testEngine.SetMapper(phoenixormcore.LintGonicMapper)
 	defer func() {
 		testEngine.UnMapType(rValue(new(IDGonicMapper)).Type())
 		testEngine.SetMapper(oldMapper)
@@ -57,7 +57,7 @@ func TestSameMapperID(t *testing.T) {
 
 	oldMapper := testEngine.GetColumnMapper()
 	testEngine.UnMapType(rValue(new(IDSameMapper)).Type())
-	testEngine.SetMapper(core.SameMapper{})
+	testEngine.SetMapper(phoenixormcore.SameMapper{})
 	defer func() {
 		testEngine.UnMapType(rValue(new(IDSameMapper)).Type())
 		testEngine.SetMapper(oldMapper)
@@ -76,7 +76,7 @@ func TestSameMapperID(t *testing.T) {
 	for _, tb := range tables {
 		if tb.Name == "IDSameMapper" {
 			if len(tb.PKColumns()) != 1 || tb.PKColumns()[0].Name != "ID" {
-				t.Fatal(tb)
+				t.Fatalf("tb %s tb.PKColumns() is %d not 1, tb.PKColumns()[0].Name is %s not ID", tb.Name, len(tb.PKColumns()), tb.PKColumns()[0].Name)
 			}
 			return
 		}

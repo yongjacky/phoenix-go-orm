@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestJoinLimit(t *testing.T) {
@@ -300,7 +300,7 @@ func TestOrderSameMapper(t *testing.T) {
 	testEngine.UnMapType(rValue(new(Userinfo)).Type())
 
 	mapper := testEngine.GetTableMapper()
-	testEngine.SetMapper(core.SameMapper{})
+	testEngine.SetMapper(phoenixormcore.SameMapper{})
 
 	defer func() {
 		testEngine.UnMapType(rValue(new(Userinfo)).Type())
@@ -325,7 +325,7 @@ func TestHavingSameMapper(t *testing.T) {
 	testEngine.UnMapType(rValue(new(Userinfo)).Type())
 
 	mapper := testEngine.GetTableMapper()
-	testEngine.SetMapper(core.SameMapper{})
+	testEngine.SetMapper(phoenixormcore.SameMapper{})
 	defer func() {
 		testEngine.UnMapType(rValue(new(Userinfo)).Type())
 		testEngine.SetMapper(mapper)

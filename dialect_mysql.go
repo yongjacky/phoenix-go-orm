@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 var (
@@ -162,7 +162,7 @@ var (
 )
 
 type mysql struct {
-	core.Base
+	phoenixormcore.Base
 	net               string
 	addr              string
 	params            map[string]string
@@ -175,7 +175,7 @@ type mysql struct {
 	rowFormat         string
 }
 
-func (db *mysql) Init(d *core.DB, uri *core.Uri, drivername, dataSourceName string) error {
+func (db *mysql) Init(d *phoenixormcore.DB, uri *phoenixormcore.Uri, drivername, dataSourceName string) error {
 	return db.Base.Init(d, db, uri, drivername, dataSourceName)
 }
 
@@ -199,29 +199,29 @@ func (db *mysql) SetParams(params map[string]string) {
 	}
 }
 
-func (db *mysql) SqlType(c *core.Column) string {
+func (db *mysql) SqlType(c *phoenixormcore.Column) string {
 	var res string
 	switch t := c.SQLType.Name; t {
-	case core.Bool:
-		res = core.TinyInt
+	case phoenixormcore.Bool:
+		res = phoenixormcore.TinyInt
 		c.Length = 1
-	case core.Serial:
+	case phoenixormcore.Serial:
 		c.IsAutoIncrement = true
 		c.IsPrimaryKey = true
 		c.Nullable = false
-		res = core.Int
-	case core.BigSerial:
+		res = phoenixormcore.Int
+	case phoenixormcore.BigSerial:
 		c.IsAutoIncrement = true
 		c.IsPrimaryKey = true
 		c.Nullable = false
-		res = core.BigInt
-	case core.Bytea:
-		res = core.Blob
-	case core.TimeStampz:
-		res = core.Char
+		res = phoenixormcore.BigInt
+	case phoenixormcore.Bytea:
+		res = phoenixormcore.Blob
+	case phoenixormcore.TimeStampz:
+		res = phoenixormcore.Char
 		c.Length = 64
-	case core.Enum: // mysql enum
-		res = core.Enum
+	case phoenixormcore.Enum: // mysql enum
+		res = phoenixormcore.Enum
 		res += "("
 		opts := ""
 		for v := range c.EnumOptions {
@@ -229,8 +229,8 @@ func (db *mysql) SqlType(c *core.Column) string {
 		}
 		res += strings.TrimLeft(opts, ",")
 		res += ")"
-	case core.Set: // mysql set
-		res = core.Set
+	case phoenixormcore.Set: // mysql set
+		res = phoenixormcore.Set
 		res += "("
 		opts := ""
 		for v := range c.SetOptions {
@@ -238,13 +238,13 @@ func (db *mysql) SqlType(c *core.Column) string {
 		}
 		res += strings.TrimLeft(opts, ",")
 		res += ")"
-	case core.NVarchar:
-		res = core.Varchar
-	case core.Uuid:
-		res = core.Varchar
+	case phoenixormcore.NVarchar:
+		res = phoenixormcore.Varchar
+	case phoenixormcore.Uuid:
+		res = phoenixormcore.Varchar
 		c.Length = 40
-	case core.Json:
-		res = core.Text
+	case phoenixormcore.Json:
+		res = phoenixormcore.Text
 	default:
 		res = t
 	}
@@ -252,7 +252,7 @@ func (db *mysql) SqlType(c *core.Column) string {
 	hasLen1 := (c.Length > 0)
 	hasLen2 := (c.Length2 > 0)
 
-	if res == core.BigInt && !hasLen1 && !hasLen2 {
+	if res == phoenixormcore.BigInt && !hasLen1 && !hasLen2 {
 		c.Length = 20
 		hasLen1 = true
 	}
@@ -313,7 +313,7 @@ func (db *mysql) TableCheckSql(tableName string) (string, []interface{}) {
 	return sql, args
 }
 
-func (db *mysql) GetColumns(tableName string) ([]string, map[string]*core.Column, error) {
+func (db *mysql) GetColumns(tableName string) ([]string, map[string]*phoenixormcore.Column, error) {
 	args := []interface{}{db.DbName, tableName}
 	s := "SELECT `COLUMN_NAME`, `IS_NULLABLE`, `COLUMN_DEFAULT`, `COLUMN_TYPE`," +
 		" `COLUMN_KEY`, `EXTRA`,`COLUMN_COMMENT` FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE `TABLE_SCHEMA` = ? AND `TABLE_NAME` = ?"
@@ -325,10 +325,10 @@ func (db *mysql) GetColumns(tableName string) ([]string, map[string]*core.Column
 	}
 	defer rows.Close()
 
-	cols := make(map[string]*core.Column)
+	cols := make(map[string]*phoenixormcore.Column)
 	colSeq := make([]string, 0)
 	for rows.Next() {
-		col := new(core.Column)
+		col := new(phoenixormcore.Column)
 		col.Indexes = make(map[string]int)
 
 		var columnName, isNullable, colType, colKey, extra, comment string
@@ -356,7 +356,7 @@ func (db *mysql) GetColumns(tableName string) ([]string, map[string]*core.Column
 		var len1, len2 int
 		if len(cts) == 2 {
 			idx := strings.Index(cts[1], ")")
-			if colType == core.Enum && cts[1][0] == '\'' { // enum
+			if colType == phoenixormcore.Enum && cts[1][0] == '\'' { // enum
 				options := strings.Split(cts[1][0:idx], ",")
 				col.EnumOptions = make(map[string]int)
 				for k, v := range options {
@@ -364,7 +364,7 @@ func (db *mysql) GetColumns(tableName string) ([]string, map[string]*core.Column
 					v = strings.Trim(v, "'")
 					col.EnumOptions[v] = k
 				}
-			} else if colType == core.Set && cts[1][0] == '\'' {
+			} else if colType == phoenixormcore.Set && cts[1][0] == '\'' {
 				options := strings.Split(cts[1][0:idx], ",")
 				col.SetOptions = make(map[string]int)
 				for k, v := range options {
@@ -394,8 +394,8 @@ func (db *mysql) GetColumns(tableName string) ([]string, map[string]*core.Column
 		}
 		col.Length = len1
 		col.Length2 = len2
-		if _, ok := core.SqlTypes[colType]; ok {
-			col.SQLType = core.SQLType{Name: colType, DefaultLength: len1, DefaultLength2: len2}
+		if _, ok := phoenixormcore.SqlTypes[colType]; ok {
+			col.SQLType = phoenixormcore.SQLType{Name: colType, DefaultLength: len1, DefaultLength2: len2}
 		} else {
 			return nil, nil, fmt.Errorf("Unknown colType %v", colType)
 		}
@@ -424,7 +424,7 @@ func (db *mysql) GetColumns(tableName string) ([]string, map[string]*core.Column
 	return colSeq, cols, nil
 }
 
-func (db *mysql) GetTables() ([]*core.Table, error) {
+func (db *mysql) GetTables() ([]*phoenixormcore.Table, error) {
 	args := []interface{}{db.DbName}
 	s := "SELECT `TABLE_NAME`, `ENGINE`, `TABLE_ROWS`, `AUTO_INCREMENT`, `TABLE_COMMENT` from " +
 		"`INFORMATION_SCHEMA`.`TABLES` WHERE `TABLE_SCHEMA`=? AND (`ENGINE`='MyISAM' OR `ENGINE` = 'InnoDB' OR `ENGINE` = 'TokuDB')"
@@ -436,9 +436,9 @@ func (db *mysql) GetTables() ([]*core.Table, error) {
 	}
 	defer rows.Close()
 
-	tables := make([]*core.Table, 0)
+	tables := make([]*phoenixormcore.Table, 0)
 	for rows.Next() {
-		table := core.NewEmptyTable()
+		table := phoenixormcore.NewEmptyTable()
 		var name, engine, tableRows, comment string
 		var autoIncr *string
 		err = rows.Scan(&name, &engine, &tableRows, &autoIncr, &comment)
@@ -454,7 +454,7 @@ func (db *mysql) GetTables() ([]*core.Table, error) {
 	return tables, nil
 }
 
-func (db *mysql) GetIndexes(tableName string) (map[string]*core.Index, error) {
+func (db *mysql) GetIndexes(tableName string) (map[string]*phoenixormcore.Index, error) {
 	args := []interface{}{db.DbName, tableName}
 	s := "SELECT `INDEX_NAME`, `NON_UNIQUE`, `COLUMN_NAME` FROM `INFORMATION_SCHEMA`.`STATISTICS` WHERE `TABLE_SCHEMA` = ? AND `TABLE_NAME` = ?"
 	db.LogSQL(s, args)
@@ -465,7 +465,7 @@ func (db *mysql) GetIndexes(tableName string) (map[string]*core.Index, error) {
 	}
 	defer rows.Close()
 
-	indexes := make(map[string]*core.Index, 0)
+	indexes := make(map[string]*phoenixormcore.Index, 0)
 	for rows.Next() {
 		var indexType int
 		var indexName, colName, nonUnique string
@@ -479,9 +479,9 @@ func (db *mysql) GetIndexes(tableName string) (map[string]*core.Index, error) {
 		}
 
 		if "YES" == nonUnique || nonUnique == "1" {
-			indexType = core.IndexType
+			indexType = phoenixormcore.IndexType
 		} else {
-			indexType = core.UniqueType
+			indexType = phoenixormcore.UniqueType
 		}
 
 		colName = strings.Trim(colName, "` ")
@@ -491,10 +491,10 @@ func (db *mysql) GetIndexes(tableName string) (map[string]*core.Index, error) {
 			isRegular = true
 		}
 
-		var index *core.Index
+		var index *phoenixormcore.Index
 		var ok bool
 		if index, ok = indexes[indexName]; !ok {
-			index = new(core.Index)
+			index = new(phoenixormcore.Index)
 			index.IsRegular = isRegular
 			index.Type = indexType
 			index.Name = indexName
@@ -505,7 +505,7 @@ func (db *mysql) GetIndexes(tableName string) (map[string]*core.Index, error) {
 	return indexes, nil
 }
 
-func (db *mysql) CreateTableSql(table *core.Table, tableName, storeEngine, charset string) string {
+func (db *mysql) CreateTableSql(table *phoenixormcore.Table, tableName, storeEngine, charset string) string {
 	var sql string
 	sql = "CREATE TABLE IF NOT EXISTS "
 	if tableName == "" {
@@ -559,15 +559,15 @@ func (db *mysql) CreateTableSql(table *core.Table, tableName, storeEngine, chars
 	return sql
 }
 
-func (db *mysql) Filters() []core.Filter {
-	return []core.Filter{&core.IdFilter{}}
+func (db *mysql) Filters() []phoenixormcore.Filter {
+	return []phoenixormcore.Filter{&phoenixormcore.IdFilter{}}
 }
 
 type mymysqlDriver struct {
 }
 
-func (p *mymysqlDriver) Parse(driverName, dataSourceName string) (*core.Uri, error) {
-	db := &core.Uri{DbType: core.MYSQL}
+func (p *mymysqlDriver) Parse(driverName, dataSourceName string) (*phoenixormcore.Uri, error) {
+	db := &phoenixormcore.Uri{DbType: phoenixormcore.MYSQL}
 
 	pd := strings.SplitN(dataSourceName, "*", 2)
 	if len(pd) == 2 {
@@ -618,7 +618,7 @@ func (p *mymysqlDriver) Parse(driverName, dataSourceName string) (*core.Uri, err
 type mysqlDriver struct {
 }
 
-func (p *mysqlDriver) Parse(driverName, dataSourceName string) (*core.Uri, error) {
+func (p *mysqlDriver) Parse(driverName, dataSourceName string) (*phoenixormcore.Uri, error) {
 	dsnPattern := regexp.MustCompile(
 		`^(?:(?P<user>.*?)(?::(?P<passwd>.*))?@)?` + // [user[:password]@]
 			`(?:(?P<net>[^\(]*)(?:\((?P<addr>[^\)]*)\))?)?` + // [net[(addr)]]
@@ -628,7 +628,7 @@ func (p *mysqlDriver) Parse(driverName, dataSourceName string) (*core.Uri, error
 	// tlsConfigRegister := make(map[string]*tls.Config)
 	names := dsnPattern.SubexpNames()
 
-	uri := &core.Uri{DbType: core.MYSQL}
+	uri := &phoenixormcore.Uri{DbType: phoenixormcore.MYSQL}
 
 	for i, match := range matches {
 		switch names[i] {

@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"xorm.io/builder"
-	"xorm.io/core"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
-func (engine *Engine) buildConds(table *core.Table, bean interface{},
+func (engine *Engine) buildConds(table *phoenixormcore.Table, bean interface{},
 	includeVersion bool, includeUpdated bool, includeNil bool,
 	includeAutoIncr bool, allUseBool bool, useAllCols bool, unscoped bool,
-	mustColumnMap map[string]bool, tableName, aliasName string, addedTableName bool) (builder.Cond, error) {
-	var conds []builder.Cond
+	mustColumnMap map[string]bool, tableName, aliasName string, addedTableName bool) (phoenixormbuilder.Cond, error) {
+	var conds []phoenixormbuilder.Cond
 	for _, col := range table.Columns() {
 		if !includeVersion && col.IsVersion {
 			continue
@@ -31,7 +31,7 @@ func (engine *Engine) buildConds(table *core.Table, bean interface{},
 			continue
 		}
 
-		if engine.dialect.DBType() == core.MSSQL && (col.SQLType.Name == core.Text || col.SQLType.IsBlob() || col.SQLType.Name == core.TimeStampz) {
+		if engine.dialect.DBType() == phoenixormcore.MSSQL && (col.SQLType.Name == phoenixormcore.Text || col.SQLType.IsBlob() || col.SQLType.Name == phoenixormcore.TimeStampz) {
 			continue
 		}
 		if col.SQLType.IsJson() {
@@ -80,7 +80,7 @@ func (engine *Engine) buildConds(table *core.Table, bean interface{},
 		if fieldType.Kind() == reflect.Ptr {
 			if fieldValue.IsNil() {
 				if includeNil {
-					conds = append(conds, builder.Eq{colName: nil})
+					conds = append(conds, phoenixormbuilder.Eq{colName: nil})
 				}
 				continue
 			} else if !fieldValue.IsValid() {
@@ -130,13 +130,13 @@ func (engine *Engine) buildConds(table *core.Table, bean interface{},
 			t := int64(fieldValue.Uint())
 			val = reflect.ValueOf(&t).Interface()
 		case reflect.Struct:
-			if fieldType.ConvertibleTo(core.TimeType) {
-				t := fieldValue.Convert(core.TimeType).Interface().(time.Time)
+			if fieldType.ConvertibleTo(phoenixormcore.TimeType) {
+				t := fieldValue.Convert(phoenixormcore.TimeType).Interface().(time.Time)
 				if !requiredField && (t.IsZero() || !fieldValue.IsValid()) {
 					continue
 				}
 				val = engine.formatColTime(col, t)
-			} else if _, ok := reflect.New(fieldType).Interface().(core.Conversion); ok {
+			} else if _, ok := reflect.New(fieldType).Interface().(phoenixormcore.Conversion); ok {
 				continue
 			} else if valNul, ok := fieldValue.Interface().(driver.Valuer); ok {
 				val, _ = valNul.Value()
@@ -225,8 +225,8 @@ func (engine *Engine) buildConds(table *core.Table, bean interface{},
 			val = fieldValue.Interface()
 		}
 
-		conds = append(conds, builder.Eq{colName: val})
+		conds = append(conds, phoenixormbuilder.Eq{colName: val})
 	}
 
-	return builder.And(conds...), nil
+	return phoenixormbuilder.And(conds...), nil
 }

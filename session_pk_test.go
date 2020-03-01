@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"xorm.io/core"
 	"github.com/stretchr/testify/assert"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 type IntId struct {
@@ -725,7 +725,7 @@ func TestCompositeKey(t *testing.T) {
 	}
 
 	var compositeKeyVal CompositeKey
-	has, err := testEngine.ID(core.PK{11, 22}).Get(&compositeKeyVal)
+	has, err := testEngine.ID(phoenixormcore.PK{11, 22}).Get(&compositeKeyVal)
 	if err != nil {
 		t.Error(err)
 	} else if !has {
@@ -734,7 +734,7 @@ func TestCompositeKey(t *testing.T) {
 
 	var compositeKeyVal2 CompositeKey
 	// test passing PK ptr, this test seem failed withCache
-	has, err = testEngine.ID(&core.PK{11, 22}).Get(&compositeKeyVal2)
+	has, err = testEngine.ID(&phoenixormcore.PK{11, 22}).Get(&compositeKeyVal2)
 	if err != nil {
 		t.Error(err)
 	} else if !has {
@@ -771,14 +771,14 @@ func TestCompositeKey(t *testing.T) {
 	assert.EqualValues(t, compositeKeyVal, cps[0], "should be equeal")
 
 	compositeKeyVal = CompositeKey{UpdateStr: "test1"}
-	cnt, err = testEngine.ID(core.PK{11, 22}).Update(&compositeKeyVal)
+	cnt, err = testEngine.ID(phoenixormcore.PK{11, 22}).Update(&compositeKeyVal)
 	if err != nil {
 		t.Error(err)
 	} else if cnt != 1 {
 		t.Error(errors.New("can't update CompositeKey{11, 22}"))
 	}
 
-	cnt, err = testEngine.ID(core.PK{11, 22}).Delete(&CompositeKey{})
+	cnt, err = testEngine.ID(phoenixormcore.PK{11, 22}).Delete(&CompositeKey{})
 	if err != nil {
 		t.Error(err)
 	} else if cnt != 1 {
@@ -822,7 +822,7 @@ func TestCompositeKey2(t *testing.T) {
 	}
 
 	var user User
-	has, err := testEngine.ID(core.PK{"11", 22}).Get(&user)
+	has, err := testEngine.ID(phoenixormcore.PK{"11", 22}).Get(&user)
 	if err != nil {
 		t.Error(err)
 	} else if !has {
@@ -830,7 +830,7 @@ func TestCompositeKey2(t *testing.T) {
 	}
 
 	// test passing PK ptr, this test seem failed withCache
-	has, err = testEngine.ID(&core.PK{"11", 22}).Get(&user)
+	has, err = testEngine.ID(&phoenixormcore.PK{"11", 22}).Get(&user)
 	if err != nil {
 		t.Error(err)
 	} else if !has {
@@ -838,14 +838,14 @@ func TestCompositeKey2(t *testing.T) {
 	}
 
 	user = User{NickName: "test1"}
-	cnt, err = testEngine.ID(core.PK{"11", 22}).Update(&user)
+	cnt, err = testEngine.ID(phoenixormcore.PK{"11", 22}).Update(&user)
 	if err != nil {
 		t.Error(err)
 	} else if cnt != 1 {
 		t.Error(errors.New("can't update User{11, 22}"))
 	}
 
-	cnt, err = testEngine.ID(core.PK{"11", 22}).Delete(&User{})
+	cnt, err = testEngine.ID(phoenixormcore.PK{"11", 22}).Delete(&User{})
 	if err != nil {
 		t.Error(err)
 	} else if cnt != 1 {
@@ -890,7 +890,7 @@ func TestCompositeKey3(t *testing.T) {
 	}
 
 	var user UserPK2
-	has, err := testEngine.ID(core.PK{"11", 22}).Get(&user)
+	has, err := testEngine.ID(phoenixormcore.PK{"11", 22}).Get(&user)
 	if err != nil {
 		t.Error(err)
 	} else if !has {
@@ -898,7 +898,7 @@ func TestCompositeKey3(t *testing.T) {
 	}
 
 	// test passing PK ptr, this test seem failed withCache
-	has, err = testEngine.ID(&core.PK{"11", 22}).Get(&user)
+	has, err = testEngine.ID(&phoenixormcore.PK{"11", 22}).Get(&user)
 	if err != nil {
 		t.Error(err)
 	} else if !has {
@@ -906,14 +906,14 @@ func TestCompositeKey3(t *testing.T) {
 	}
 
 	user = UserPK2{NickName: "test1"}
-	cnt, err = testEngine.ID(core.PK{"11", 22}).Update(&user)
+	cnt, err = testEngine.ID(phoenixormcore.PK{"11", 22}).Update(&user)
 	if err != nil {
 		t.Error(err)
 	} else if cnt != 1 {
 		t.Error(errors.New("can't update User{11, 22}"))
 	}
 
-	cnt, err = testEngine.ID(core.PK{"11", 22}).Delete(&UserPK2{})
+	cnt, err = testEngine.ID(phoenixormcore.PK{"11", 22}).Delete(&UserPK2{})
 	if err != nil {
 		t.Error(err)
 	} else if cnt != 1 {
@@ -1129,7 +1129,7 @@ func TestCompositePK(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1+len(tables1), len(tables2))
 
-	var table *core.Table
+	var table *phoenixormcore.Table
 	for _, t := range tables2 {
 		if t.Name == testEngine.GetTableMapper().Obj2Table("TaskSolution") {
 			table = t

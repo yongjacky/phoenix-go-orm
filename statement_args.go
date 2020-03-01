@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"xorm.io/builder"
-	"xorm.io/core"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func quoteNeeded(a interface{}) bool {
@@ -28,7 +28,7 @@ func quoteNeeded(a interface{}) bool {
 		return true
 	case time.Time, *time.Time:
 		return true
-	case builder.Builder, *builder.Builder:
+	case phoenixormbuilder.Builder, *phoenixormbuilder.Builder:
 		return false
 	}
 
@@ -77,10 +77,10 @@ func convertArg(arg interface{}, convertFunc func(string) string) string {
 
 const insertSelectPlaceHolder = true
 
-func (statement *Statement) writeArg(w *builder.BytesWriter, arg interface{}) error {
+func (statement *Statement) writeArg(w *phoenixormbuilder.BytesWriter, arg interface{}) error {
 	switch argv := arg.(type) {
 	case bool:
-		if statement.Engine.dialect.DBType() == core.MSSQL {
+		if statement.Engine.dialect.DBType() == phoenixormcore.MSSQL {
 			if argv {
 				if _, err := w.WriteString("1"); err != nil {
 					return err
@@ -101,7 +101,7 @@ func (statement *Statement) writeArg(w *builder.BytesWriter, arg interface{}) er
 				}
 			}
 		}
-	case *builder.Builder:
+	case *phoenixormbuilder.Builder:
 		if _, err := w.WriteString("("); err != nil {
 			return err
 		}
@@ -119,7 +119,7 @@ func (statement *Statement) writeArg(w *builder.BytesWriter, arg interface{}) er
 			w.Append(arg)
 		} else {
 			var convertFunc = convertStringSingleQuote
-			if statement.Engine.dialect.DBType() == core.MYSQL {
+			if statement.Engine.dialect.DBType() == phoenixormcore.MYSQL {
 				convertFunc = convertString
 			}
 			if _, err := w.WriteString(convertArg(arg, convertFunc)); err != nil {
@@ -130,7 +130,7 @@ func (statement *Statement) writeArg(w *builder.BytesWriter, arg interface{}) er
 	return nil
 }
 
-func (statement *Statement) writeArgs(w *builder.BytesWriter, args []interface{}) error {
+func (statement *Statement) writeArgs(w *phoenixormbuilder.BytesWriter, args []interface{}) error {
 	for i, arg := range args {
 		if err := statement.writeArg(w, arg); err != nil {
 			return err
@@ -145,7 +145,7 @@ func (statement *Statement) writeArgs(w *builder.BytesWriter, args []interface{}
 	return nil
 }
 
-func writeStrings(w *builder.BytesWriter, cols []string, leftQuote, rightQuote string) error {
+func writeStrings(w *phoenixormbuilder.BytesWriter, cols []string, leftQuote, rightQuote string) error {
 	for i, colName := range cols {
 		if len(leftQuote) > 0 && colName[0] != '`' {
 			if _, err := w.WriteString(leftQuote); err != nil {

@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"xorm.io/builder"
-	"xorm.io/core"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // Exist returns true if the record exist otherwise return false
@@ -37,23 +37,23 @@ func (session *Session) Exist(bean ...interface{}) (bool, error) {
 			tableName = session.statement.Engine.Quote(tableName)
 
 			if session.statement.cond.IsValid() {
-				condSQL, condArgs, err := builder.ToSQL(session.statement.cond)
+				condSQL, condArgs, err := phoenixormbuilder.ToSQL(session.statement.cond)
 				if err != nil {
 					return false, err
 				}
 
-				if session.engine.dialect.DBType() == core.MSSQL {
+				if session.engine.dialect.DBType() == phoenixormcore.MSSQL {
 					sqlStr = fmt.Sprintf("SELECT TOP 1 * FROM %s WHERE %s", tableName, condSQL)
-				} else if session.engine.dialect.DBType() == core.ORACLE {
+				} else if session.engine.dialect.DBType() == phoenixormcore.ORACLE {
 					sqlStr = fmt.Sprintf("SELECT * FROM %s WHERE (%s) AND ROWNUM=1", tableName, condSQL)
 				} else {
 					sqlStr = fmt.Sprintf("SELECT * FROM %s WHERE %s LIMIT 1", tableName, condSQL)
 				}
 				args = condArgs
 			} else {
-				if session.engine.dialect.DBType() == core.MSSQL {
+				if session.engine.dialect.DBType() == phoenixormcore.MSSQL {
 					sqlStr = fmt.Sprintf("SELECT TOP 1 * FROM %s", tableName)
-				} else if session.engine.dialect.DBType() == core.ORACLE {
+				} else if session.engine.dialect.DBType() == phoenixormcore.ORACLE {
 					sqlStr = fmt.Sprintf("SELECT * FROM  %s WHERE ROWNUM=1", tableName)
 				} else {
 					sqlStr = fmt.Sprintf("SELECT * FROM %s LIMIT 1", tableName)

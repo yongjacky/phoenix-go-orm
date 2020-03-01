@@ -15,35 +15,35 @@ import (
 	"sync"
 	"time"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 const (
 	// Version show the xorm's version
-	Version string = "0.7.0.0504"
+	Version string = "0.8.0.1015"
 )
 
 func regDrvsNDialects() bool {
 	providedDrvsNDialects := map[string]struct {
-		dbType     core.DbType
-		getDriver  func() core.Driver
-		getDialect func() core.Dialect
+		dbType     phoenixormcore.DbType
+		getDriver  func() phoenixormcore.Driver
+		getDialect func() phoenixormcore.Dialect
 	}{
-		"mssql":    {"mssql", func() core.Driver { return &odbcDriver{} }, func() core.Dialect { return &mssql{} }},
-		"odbc":     {"mssql", func() core.Driver { return &odbcDriver{} }, func() core.Dialect { return &mssql{} }}, // !nashtsai! TODO change this when supporting MS Access
-		"mysql":    {"mysql", func() core.Driver { return &mysqlDriver{} }, func() core.Dialect { return &mysql{} }},
-		"mymysql":  {"mysql", func() core.Driver { return &mymysqlDriver{} }, func() core.Dialect { return &mysql{} }},
-		"postgres": {"postgres", func() core.Driver { return &pqDriver{} }, func() core.Dialect { return &postgres{} }},
-		"pgx":      {"postgres", func() core.Driver { return &pqDriverPgx{} }, func() core.Dialect { return &postgres{} }},
-		"sqlite3":  {"sqlite3", func() core.Driver { return &sqlite3Driver{} }, func() core.Dialect { return &sqlite3{} }},
-		"oci8":     {"oracle", func() core.Driver { return &oci8Driver{} }, func() core.Dialect { return &oracle{} }},
-		"goracle":  {"oracle", func() core.Driver { return &goracleDriver{} }, func() core.Dialect { return &oracle{} }},
+		"mssql":    {"mssql", func() phoenixormcore.Driver { return &odbcDriver{} }, func() phoenixormcore.Dialect { return &mssql{} }},
+		"odbc":     {"mssql", func() phoenixormcore.Driver { return &odbcDriver{} }, func() phoenixormcore.Dialect { return &mssql{} }}, // !nashtsai! TODO change this when supporting MS Access
+		"mysql":    {"mysql", func() phoenixormcore.Driver { return &mysqlDriver{} }, func() phoenixormcore.Dialect { return &mysql{} }},
+		"mymysql":  {"mysql", func() phoenixormcore.Driver { return &mymysqlDriver{} }, func() phoenixormcore.Dialect { return &mysql{} }},
+		"postgres": {"postgres", func() phoenixormcore.Driver { return &pqDriver{} }, func() phoenixormcore.Dialect { return &postgres{} }},
+		"pgx":      {"postgres", func() phoenixormcore.Driver { return &pqDriverPgx{} }, func() phoenixormcore.Dialect { return &postgres{} }},
+		"sqlite3":  {"sqlite3", func() phoenixormcore.Driver { return &sqlite3Driver{} }, func() phoenixormcore.Dialect { return &sqlite3{} }},
+		"oci8":     {"oracle", func() phoenixormcore.Driver { return &oci8Driver{} }, func() phoenixormcore.Dialect { return &oracle{} }},
+		"goracle":  {"oracle", func() phoenixormcore.Driver { return &goracleDriver{} }, func() phoenixormcore.Dialect { return &oracle{} }},
 	}
 
 	for driverName, v := range providedDrvsNDialects {
-		if driver := core.QueryDriver(driverName); driver == nil {
-			core.RegisterDriver(driverName, v.getDriver())
-			core.RegisterDialect(v.dbType, v.getDialect)
+		if driver := phoenixormcore.QueryDriver(driverName); driver == nil {
+			phoenixormcore.RegisterDriver(driverName, v.getDriver())
+			phoenixormcore.RegisterDialect(v.dbType, v.getDialect)
 		}
 	}
 	return true
@@ -60,7 +60,7 @@ func init() {
 // NewEngine new a db manager according to the parameter. Currently support four
 // drivers
 func NewEngine(driverName string, dataSourceName string) (*Engine, error) {
-	driver := core.QueryDriver(driverName)
+	driver := phoenixormcore.QueryDriver(driverName)
 	if driver == nil {
 		return nil, fmt.Errorf("Unsupported driver name: %v", driverName)
 	}
@@ -70,12 +70,12 @@ func NewEngine(driverName string, dataSourceName string) (*Engine, error) {
 		return nil, err
 	}
 
-	dialect := core.QueryDialect(uri.DbType)
+	dialect := phoenixormcore.QueryDialect(uri.DbType)
 	if dialect == nil {
 		return nil, fmt.Errorf("Unsupported dialect type: %v", uri.DbType)
 	}
 
-	db, err := core.Open(driverName, dataSourceName)
+	db, err := phoenixormcore.Open(driverName, dataSourceName)
 	if err != nil {
 		return nil, err
 	}
@@ -88,25 +88,25 @@ func NewEngine(driverName string, dataSourceName string) (*Engine, error) {
 	engine := &Engine{
 		db:             db,
 		dialect:        dialect,
-		Tables:         make(map[reflect.Type]*core.Table),
+		Tables:         make(map[reflect.Type]*phoenixormcore.Table),
 		mutex:          &sync.RWMutex{},
 		TagIdentifier:  "xorm",
 		TZLocation:     time.Local,
 		tagHandlers:    defaultTagHandlers,
-		cachers:        make(map[string]core.Cacher),
+		cachers:        make(map[string]phoenixormcore.Cacher),
 		defaultContext: context.Background(),
 	}
 
-	if uri.DbType == core.SQLITE {
+	if uri.DbType == phoenixormcore.SQLITE {
 		engine.DatabaseTZ = time.UTC
 	} else {
 		engine.DatabaseTZ = time.Local
 	}
 
 	logger := NewSimpleLogger(os.Stdout)
-	logger.SetLevel(core.LOG_INFO)
+	logger.SetLevel(phoenixormcore.LOG_INFO)
 	engine.SetLogger(logger)
-	engine.SetMapper(core.NewCacheMapper(new(core.SnakeMapper)))
+	engine.SetMapper(phoenixormcore.NewCacheMapper(new(phoenixormcore.SnakeMapper)))
 
 	runtime.SetFinalizer(engine, close)
 

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"xorm.io/builder"
-	"xorm.io/core"
+	phoenixormbuilder "github.com/yongjacky/phoenix-go-orm-builder"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 func TestSetExpr(t *testing.T) {
@@ -45,7 +45,7 @@ func TestSetExpr(t *testing.T) {
 	assert.EqualValues(t, 1, cnt)
 
 	var not = "NOT"
-	if testEngine.Dialect().DBType() == core.MSSQL {
+	if testEngine.Dialect().DBType() == phoenixormcore.MSSQL {
 		not = "~"
 	}
 	cnt, err = testEngine.SetExpr("show", not+" `show`").ID(1).Update(new(UserExpr))
@@ -54,9 +54,9 @@ func TestSetExpr(t *testing.T) {
 
 	tableName := testEngine.TableName(new(UserExprIssue), true)
 	cnt, err = testEngine.SetExpr("issue_id",
-		builder.Select("id").
+		phoenixormbuilder.Select("id").
 			From(tableName).
-			Where(builder.Eq{"id": issue.Id})).
+			Where(phoenixormbuilder.Eq{"id": issue.Id})).
 		ID(1).
 		Update(new(UserExpr))
 	assert.NoError(t, err)

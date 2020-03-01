@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // str2PK convert string value to primary key value according to tp
@@ -155,6 +155,17 @@ func isZero(k interface{}) bool {
 	return false
 }
 
+func isZeroValue(v reflect.Value) bool {
+	if isZero(v.Interface()) {
+		return true
+	}
+	switch v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
+		return v.IsNil()
+	}
+	return false
+}
+
 func isStructZero(v reflect.Value) bool {
 	if !v.IsValid() {
 		return true
@@ -238,7 +249,7 @@ func int64ToInt(id int64, tp reflect.Type) interface{} {
 	return int64ToIntValue(id, tp).Interface()
 }
 
-func isPKZero(pk core.PK) bool {
+func isPKZero(pk phoenixormcore.PK) bool {
 	for _, k := range pk {
 		if isZero(k) {
 			return true

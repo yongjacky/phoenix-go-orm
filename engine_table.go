@@ -9,14 +9,14 @@ import (
 	"reflect"
 	"strings"
 
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 // tbNameWithSchema will automatically add schema prefix on table name
 func (engine *Engine) tbNameWithSchema(v string) string {
 	// Add schema name as prefix of table name.
 	// Only for postgres database.
-	if engine.dialect.DBType() == core.POSTGRES &&
+	if engine.dialect.DBType() == phoenixormcore.POSTGRES &&
 		engine.dialect.URI().Schema != "" &&
 		engine.dialect.URI().Schema != postgresPublicSchema &&
 		strings.Index(v, ".") == -1 {
@@ -36,7 +36,7 @@ func (engine *Engine) TableName(bean interface{}, includeSchema ...bool) string 
 }
 
 // tbName get some table's table name
-func (session *Session) tbNameNoSchema(table *core.Table) string {
+func (session *Session) tbNameNoSchema(table *phoenixormcore.Table) string {
 	if len(session.statement.AltTableName) > 0 {
 		return session.statement.AltTableName
 	}

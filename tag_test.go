@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"xorm.io/core"
+	phoenixormcore "github.com/yongjacky/phoenix-go-orm-core"
 )
 
 type UserCU struct {
@@ -203,7 +203,7 @@ func TestAutoIncrTag(t *testing.T) {
 func TestTagComment(t *testing.T) {
 	assert.NoError(t, prepareEngine())
 	// FIXME: only support mysql
-	if testEngine.Dialect().DriverName() != core.MYSQL {
+	if testEngine.Dialect().DriverName() != phoenixormcore.MYSQL {
 		return
 	}
 
