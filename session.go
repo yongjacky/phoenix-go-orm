@@ -61,6 +61,9 @@ type Session struct {
 
 	ctx         context.Context
 	sessionType sessionType
+
+	// handle some custom usecase in phoenix project platform
+	phoenixCustom bool
 }
 
 // Clone copy all the session's content and return a new session
@@ -885,4 +888,10 @@ func (session *Session) incrVersionFieldValue(fieldValue *reflect.Value) {
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		fieldValue.SetUint(fieldValue.Uint() + 1)
 	}
+}
+
+// SetPhoenixCustom is setting phoenix custom flag to handle custom use cases
+func (session *Session) SetPhoenixCustom(value bool) *Session {
+	session.phoenixCustom = value
+	return session
 }
