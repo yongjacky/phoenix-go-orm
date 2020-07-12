@@ -294,7 +294,11 @@ func (session *Session) noCacheFind(table *phoenixormcore.Table, containerValue 
 		case reflect.Slice:
 			err = rows.ScanSlice(bean)
 		case reflect.Map:
-			err = rows.ScanMap(bean)
+			if session.phoenixCustom {
+				err = rows.ScanMapByPhoenixCustom(bean)
+			} else {
+				err = rows.ScanMap(bean)
+			}
 		default:
 			err = rows.Scan(bean)
 		}
